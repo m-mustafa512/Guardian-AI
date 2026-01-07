@@ -1,0 +1,7 @@
+package com.mustafafyp.guardianai.interfaces;
+
+public interface OnPermissionExplanationListener {
+    void onOk(int requestCode);
+
+    void onCancel(int switchId);
+}

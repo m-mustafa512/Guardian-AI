@@ -1,0 +1,23 @@
+/build
+
+google-services.json
+
+# Local configuration file (SDK path)
+local.properties
+
+
+*.iml
+*.ipr
+*.iws
+
+# Keystore files
+*.jks
+*.keystore
+
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
