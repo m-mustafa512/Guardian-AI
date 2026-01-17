@@ -47,6 +47,10 @@ public class ChildAdapter extends RecyclerView.Adapter<ChildAdapter.ChildAdapter
 	public void onBindViewHolder(@NonNull final ChildAdapterViewHolder childAdapterViewHolder, int i) {
 		Child child = childs.get(i);
 		childAdapterViewHolder.txtChildName.setText(child.getName());
+
+		// Bind the new Summary data
+		childAdapterViewHolder.txtUsageSummary.setText("Daily Usage: " + child.getDailyUsage());
+		childAdapterViewHolder.txtTopApp.setText("Top App: " + child.getTopApp());
 		
 		if (child.getScreenLock() != null) {
 			childAdapterViewHolder.switchLockPhone.setChecked(child.getScreenLock().isLocked());
@@ -74,13 +78,24 @@ public class ChildAdapter extends RecyclerView.Adapter<ChildAdapter.ChildAdapter
 		private Switch switchLockPhone;
 		private LinearLayout layoutDeletedApp;
 		private TextView txtDeletedApp;
+
+		// Inside ChildAdapterViewHolder class
+		private TextView txtUsageSummary;
+		private TextView txtTopApp;
+
+
 		
 		public ChildAdapterViewHolder(@NonNull View itemView) {
 			super(itemView);
 			imgChild = itemView.findViewById(R.id.imgChild);
 			txtChildName = itemView.findViewById(R.id.txtChildName);
+
+			txtUsageSummary = itemView.findViewById(R.id.txtUsageSummary);
+			txtTopApp = itemView.findViewById(R.id.txtTopApp);
+
 			switchWebFilter = itemView.findViewById(R.id.switchWebFilter);
-			switchWebFilter.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+			switchWebFilter.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener()
+			{
 				@Override
 				public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
 					if (buttonView.isPressed()) {

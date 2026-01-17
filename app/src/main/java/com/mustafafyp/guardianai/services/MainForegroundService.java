@@ -59,6 +59,10 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import android.content.pm.ApplicationInfo;
+import android.os.Handler;
+import java.util.concurrent.TimeUnit;
+
 import static com.mustafafyp.guardianai.NotificationChannelCreator.CHANNEL_ID;
 
 public class MainForegroundService extends Service {
@@ -152,6 +156,19 @@ public class MainForegroundService extends Service {
 			
 			}
 		});
+
+
+		// Add this inside onStartCommand near the bottom
+		final Handler handler = new Handler();
+		handler.post(new Runnable() {
+			@Override
+			public void run() {
+				uploadDailySummary();
+				// Run again after 5 minutes
+				handler.postDelayed(this, 300000);
+			}
+		});
+
 
         /*Query webFilterQuery = databaseReference.child("childs").child(uid).child("webFilter");
         webFilterQuery.addValueEventListener(new ValueEventListener() {
@@ -612,6 +629,57 @@ public class MainForegroundService extends Service {
 		}
 		
 	}
-	
-	
+	private void uploadDailySummary() {
+		// 1. Initialize the UsageStatsManager
+		UsageStatsManager usageStatsManager = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);
+		long endTime = System.currentTimeMillis();
+
+		// 2. Set the start time to the beginning of the current day
+		java.util.Calendar calendar = java.util.Calendar.getInstance();
+		calendar.set(java.util.Calendar.HOUR_OF_DAY, 0);
+		calendar.set(java.util.Calendar.MINUTE, 0);
+		calendar.set(java.util.Calendar.SECOND, 0);
+		long startTime = calendar.getTimeInMillis();
+
+		// 3. Query stats for today
+		List<UsageStats> stats = usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime);
+
+		long totalMillis = 0;
+		String topPkgName = "None";
+		long maxTime = 0;
+
+		if (stats != null) {
+			for (UsageStats usageStats : stats) {
+				totalMillis += usageStats.getTotalTimeInForeground();
+				if (usageStats.getTotalTimeInForeground() > maxTime) {
+					maxTime = usageStats.getTotalTimeInForeground();
+					topPkgName = usageStats.getPackageName();
+				}
+			}
+		}
+
+		// 4. Resolve the Package Name to a Readable App Name
+		String topAppName = topPkgName;
+		PackageManager pm = getPackageManager();
+		try {
+			ApplicationInfo ai = pm.getApplicationInfo(topPkgName, 0);
+			topAppName = (String) pm.getApplicationLabel(ai);
+		} catch (PackageManager.NameNotFoundException e) {
+			// Keeps the package name if the app label isn't found
+		}
+
+		// 5. Format the total time into "Xh Ym"
+		long hours = TimeUnit.MILLISECONDS.toHours(totalMillis);
+		long minutes = TimeUnit.MILLISECONDS.toMinutes(totalMillis) % 60;
+		String timeFormatted = hours + "h " + minutes + "m";
+
+		// 6. Push to Firebase under the child's node
+		// Note: databaseReference is already initialized to "users" in this service
+		HashMap<String, Object> summaryUpdate = new HashMap<>();
+		summaryUpdate.put("dailyUsage", timeFormatted);
+		summaryUpdate.put("topApp", topAppName);
+
+		databaseReference.child("childs").child(uid).updateChildren(summaryUpdate);
+	}
+
 }

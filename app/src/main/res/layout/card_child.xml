@@ -72,6 +72,40 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/layoutSummary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingLeft="64dp"
+            android:paddingRight="@dimen/margin_16dp"
+            android:paddingBottom="@dimen/margin_8dp">
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginBottom="@dimen/margin_4dp"
+                android:background="@color/flatui_clouds" />
+
+            <TextView
+                android:id="@+id/txtUsageSummary"
+                style="@style/CardBody"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Daily Usage: --"
+                android:textColor="@color/flatui_midnight_blue"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/txtTopApp"
+                style="@style/CardBody"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Top App: --"
+                android:textColor="@color/flatui_asbestos"
+                android:textSize="@dimen/text_size_14sp" />
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/layoutDeletedApp"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

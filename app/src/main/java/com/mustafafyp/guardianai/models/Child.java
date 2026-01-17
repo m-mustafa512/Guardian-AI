@@ -95,4 +95,14 @@ public class Child extends User {
 	public void setAppDeleted(boolean appDeleted) {
 		this.appDeleted = appDeleted;
 	}
+
+	private String dailyUsage = "0h 0m"; // Default value
+	private String topApp = "None";     // Default value
+
+	// Add these Getters and Setters
+	public String getDailyUsage() { return dailyUsage; }
+	public void setDailyUsage(String dailyUsage) { this.dailyUsage = dailyUsage; }
+
+	public String getTopApp() { return topApp; }
+	public void setTopApp(String topApp) { this.topApp = topApp; }
 }
