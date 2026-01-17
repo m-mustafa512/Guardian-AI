@@ -1,51 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/white"
-    android:gravity="center"
-    android:layoutDirection="locale"
-    android:orientation="vertical">
+    android:layout_height="match_parent">
 
-    <ProgressBar
-        android:id="@+id/progressbarLocationFragment"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:visibility="gone" />
-
-    <TextView
-        android:id="@+id/txtNoLocation"
-        style="@style/TextViewNoElements"
-        android:layout_margin="@dimen/margin_24dp"
-        android:text="@string/no_location_history_found"
-        tools:visibility="visible" />
-
-    <FrameLayout
-        android:id="@+id/layoutLocation"
+    <org.osmdroid.views.MapView
+        android:id="@+id/map"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:visibility="visible">
+        android:background="@android:color/white" />
 
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fabGeoFence"
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#99000000"
+        android:padding="12dp">
+
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="end|bottom"
-            android:layout_margin="@dimen/margin_16dp"
-            android:backgroundTint="@color/flatui_blue"
-            android:src="@drawable/ic_geo_fence" />
+            android:text="Live Tracking Active"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"/>
+    </LinearLayout>
 
-        <org.osmdroid.views.MapView
-            android:id="@+id/mapView"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
-
-
-        </org.osmdroid.views.MapView>
-
-
-    </FrameLayout>
-
-
-</LinearLayout>
+</FrameLayout>

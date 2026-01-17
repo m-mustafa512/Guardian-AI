@@ -1,35 +1,98 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white"
-    android:layoutDirection="locale"
+    android:background="#2C3E50"
     android:gravity="center"
     android:orientation="vertical"
-    tools:context=".guardianai.activities.BlockedAppActivity">
+    android:padding="24dp">
 
     <ImageView
-        android:layout_width="70dp"
-        android:layout_height="70dp"
-        android:src="@drawable/block_app" />
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:src="@drawable/ic_lock"
+        android:layout_marginBottom="16dp"
+        app:tint="@android:color/white"/>
 
     <TextView
         android:id="@+id/txtBlockedAppName"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_margin="@dimen/margin_4dp"
-        android:text="@string/child_app_name"
-        android:textAlignment="center"
-        android:fontFamily="@font/open_sans_bold"
-        android:textColor="@color/flatui_midnight_blue"
-        android:textSize="@dimen/text_size_18sp" />
+        android:text="App Locked"
+        android:textColor="@android:color/white"
+        android:textSize="24sp"
+        android:textStyle="bold" />
 
     <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Solve to unlock:"
+        android:textColor="#BDC3C7"
+        android:textSize="14sp"
+        android:layout_marginTop="8dp"/>
+
+    <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:fontFamily="@font/open_sans_regular"
-        android:text="@string/this_app_is_blocked_by_your_parents"
-        android:textAlignment="center"
-        android:textSize="@dimen/text_size_16sp" />
+        android:layout_marginTop="32dp"
+        app:cardBackgroundColor="@android:color/white"
+        app:cardCornerRadius="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/txtQuestion"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="12 + 5 = ?"
+                android:textColor="#2C3E50"
+                android:textSize="32sp"
+                android:textStyle="bold" />
+
+            <RadioGroup
+                android:id="@+id/radioGroupOptions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:orientation="vertical">
+
+                <RadioButton
+                    android:id="@+id/rbOption1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="15"
+                    android:padding="12dp"
+                    android:textSize="18sp"/>
+                <RadioButton
+                    android:id="@+id/rbOption2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="17"
+                    android:padding="12dp"
+                    android:textSize="18sp"/>
+                <RadioButton
+                    android:id="@+id/rbOption3"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="20"
+                    android:padding="12dp"
+                    android:textSize="18sp"/>
+            </RadioGroup>
+
+            <Button
+                android:id="@+id/btnSubmitAnswer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:backgroundTint="#2ECC71"
+                android:text="Unlock"
+                android:textColor="@android:color/white" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
 </LinearLayout>

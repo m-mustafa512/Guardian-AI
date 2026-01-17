@@ -1,145 +1,156 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="@dimen/margin_8dp"
-    android:background="@color/white"
-    app:cardCornerRadius="@dimen/card_corner_radius"
-    android:layoutDirection="locale"
-    app:cardElevation="@dimen/card_elevation">
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginVertical="8dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="4dp"
+    app:cardBackgroundColor="@android:color/white">
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical">
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
 
             <de.hdodenhof.circleimageview.CircleImageView
                 android:id="@+id/imgChild"
-                android:layout_width="@dimen/circular_image_width_small"
-                android:layout_height="@dimen/circular_image_height_small"
-                android:layout_margin="@dimen/margin_4dp"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
                 android:src="@drawable/ic_face"
-                app:civ_border_color="@color/flatui_clouds"
-                app:civ_border_width="@dimen/circular_image_border_small" />
+                app:civ_border_color="#F5F5F5"
+                app:civ_border_width="1dp" />
 
-            <FrameLayout
-                android:layout_width="match_parent"
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_margin="@dimen/margin_4dp">
+                android:layout_weight="1"
+                android:layout_marginStart="16dp"
+                android:orientation="vertical">
 
                 <TextView
                     android:id="@+id/txtChildName"
-                    style="@style/CardHeader"
                     android:layout_width="wrap_content"
-                    android:layout_gravity="start|center"
-                    android:text="@string/child_name" />
+                    android:layout_height="wrap_content"
+                    android:text="Child Name"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="#212121" />
 
+                <TextView
+                    android:id="@+id/txtStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="● Online"
+                    android:textSize="14sp"
+                    android:textColor="#4CAF50"
+                    android:layout_marginTop="2dp"/>
+            </LinearLayout>
+        </LinearLayout>
 
-                <Switch
-                    android:id="@+id/switchLockPhone"
-                    style="@style/CardSwitch" />
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="16dp"
+            android:background="#F0F0F0" />
 
-            </FrameLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:baselineAligned="false">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Daily Usage"
+                    android:textSize="12sp"
+                    android:textColor="#9E9E9E"/>
+                <TextView
+                    android:id="@+id/txtUsageSummary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="2h 15m"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="#212121"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Top App"
+                    android:textSize="12sp"
+                    android:textColor="#9E9E9E"/>
+                <TextView
+                    android:id="@+id/txtTopApp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="YouTube"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="#212121"/>
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:paddingLeft="64dp">
+            android:layout_marginTop="20dp">
 
-            <TextView
-                style="@style/CardHeader"
-                android:layout_width="wrap_content"
-                android:text="@string/web_filter"
-                android:visibility="gone" />
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnQuickLock"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Lock"
+                android:textSize="12sp"
+                android:textColor="#FFFFFF"
+                android:background="#FF5252"
+                android:layout_marginEnd="8dp"/>
 
-            <Switch
-                android:id="@+id/switchWebFilter"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center|end"
-                android:layout_margin="@dimen/margin_4dp"
-                android:visibility="gone" />
-        </LinearLayout>
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnQuickLocation"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Map"
+                android:textSize="12sp"
+                android:textColor="#FFFFFF"
+                android:background="#2196F3"
+                android:layout_marginEnd="8dp"/>
 
-        <LinearLayout
-            android:id="@+id/layoutSummary"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingLeft="64dp"
-            android:paddingRight="@dimen/margin_16dp"
-            android:paddingBottom="@dimen/margin_8dp">
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnQuickReport"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:text="Stats"
+                android:textSize="12sp"
+                android:textColor="#FFFFFF"
+                android:background="#FF9800"/>
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginBottom="@dimen/margin_4dp"
-                android:background="@color/flatui_clouds" />
-
-            <TextView
-                android:id="@+id/txtUsageSummary"
-                style="@style/CardBody"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Daily Usage: --"
-                android:textColor="@color/flatui_midnight_blue"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/txtTopApp"
-                style="@style/CardBody"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Top App: --"
-                android:textColor="@color/flatui_asbestos"
-                android:textSize="@dimen/text_size_14sp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/layoutDeletedApp"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="gone"
-            tools:visibility="visible">
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_gravity="center"
-                android:layout_margin="@dimen/margin_4dp"
-                android:background="@color/flatui_asbestos" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:layout_margin="@dimen/margin_4dp"
-                    android:src="@drawable/ic_delete" />
-
-                <TextView
-                    android:id="@+id/txtDeletedApp"
-                    style="@style/CardBody"
-                    android:layout_width="wrap_content"
-                    android:text="@string/deleted_the_app" />
-            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
-
-
 </androidx.cardview.widget.CardView>
