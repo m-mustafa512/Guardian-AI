@@ -10,6 +10,7 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import com.mustafafyp.guardianai.models.Child;
 import androidx.annotation.NonNull;
@@ -68,51 +69,86 @@ public class ParentSignedInActivity extends AppCompatActivity implements OnChild
 	private FirebaseDatabase firebaseDatabase;
 	private DatabaseReference databaseReference;
 	private String childEmail;
-	
+	private FirebaseAuth mAuth;
+
+
+
+	// UI Elements
+
+
+	private FloatingActionButton fabAddChild;
+
+
+
+
+
+	// Adapters & Lists
+
+
+
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_parent_signed_in);
-		
-		auth = FirebaseAuth.getInstance();
-		user = auth.getCurrentUser();
-		firebaseDatabase = FirebaseDatabase.getInstance();
-		databaseReference = firebaseDatabase.getReference("users");
-		
-		imgParent = findViewById(R.id.imgParent);
-		txtParentName = findViewById(R.id.txtParentName);
-		//txtChildCount = findViewById(R.id.txtChildCount);
-		linearLayout = findViewById(R.id.linearLayoutParentSignedInActivity);
-		
-		toolbar = findViewById(R.id.toolbar);
+
+		// 1. Toolbar Setup
+		androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
+		setSupportActionBar(toolbar);
+		if (getSupportActionBar() != null) {
+			getSupportActionBar().setTitle("GuardianAI Dashboard");
+		}
+
+		// 2. Initialize Views
 		progressBar = findViewById(R.id.progressBarParentSignedInActivity);
-		progressBar.setVisibility(View.VISIBLE);
-		linearLayout.setVisibility(View.GONE);
-		toolbar.setVisibility(View.GONE);
-		btnBack = findViewById(R.id.btnBack);
-		btnBack.setImageDrawable(getResources().getDrawable(R.drawable.ic_home_));
-		btnSettings = findViewById(R.id.btnSettings);
-		btnSettings.setOnClickListener(new View.OnClickListener() {
+		linearLayout = findViewById(R.id.linearLayoutParentSignedInActivity);
+		txtNoKids = findViewById(R.id.txtNoKids);
+		recyclerViewChilds = findViewById(R.id.recyclerViewChilds);
+		txtParentName = findViewById(R.id.txtParentName);
+		imgParent = findViewById(R.id.imgParent);
+		fabAddChild = findViewById(R.id.fabAddChild); // Initialize FAB
+
+		// --- FIX: FORCE UI TO SHOW IMMEDIATELY ---
+		// This fixes the "Blank White Screen" issue
+		linearLayout.setVisibility(View.VISIBLE);
+		progressBar.setVisibility(View.GONE);
+		// ----------------------------------------
+
+		// 3. Setup Recycler View
+		recyclerViewChilds.setLayoutManager(new LinearLayoutManager(this));
+
+		// 4. Initialize Firebase
+		mAuth = FirebaseAuth.getInstance();
+		user = mAuth.getCurrentUser();
+		databaseReference = FirebaseDatabase.getInstance().getReference("users");
+
+		if (user != null) {
+			String parentEmail = user.getEmail();
+
+			// Start fetching data (the list might be empty initially)
+			getChilds(parentEmail);
+
+			// Set Parent Name
+			if (user.getDisplayName() != null && !user.getDisplayName().isEmpty()) {
+				txtParentName.setText(user.getDisplayName());
+			} else {
+				txtParentName.setText(parentEmail); // Fallback to email
+			}
+
+			// Load Parent Image (Safe Check)
+			if (user.getPhotoUrl() != null) {
+				com.squareup.picasso.Picasso.get().load(user.getPhotoUrl()).into(imgParent);
+			}
+		}
+
+		// 5. FAB (Add Child) Button Logic
+		fabAddChild.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				Intent intent = new Intent(ParentSignedInActivity.this, SettingsActivity.class);
+				Intent intent = new Intent(ParentSignedInActivity.this, GenerateQRActivity.class);
 				startActivity(intent);
 			}
 		});
-		txtTitle = findViewById(R.id.txtTitle);
-		txtTitle.setText(getString(R.string.home));
-		
-		txtNoKids = findViewById(R.id.txtNoKids);
-		
-		recyclerViewChilds = findViewById(R.id.recyclerViewChilds);
-		recyclerViewChilds.setHasFixedSize(true);
-		recyclerViewChilds.setLayoutManager(new LinearLayoutManager(this));
-		String parentEmail = user.getEmail();
-		Log.i(TAG, "onCreate: user:" + user.getEmail());
-		Log.i(TAG, "onCreate: user:" + user.getUid());
-		getChilds(parentEmail);
-		getParentData(parentEmail);
-		
 	}
 
 	public void getChilds(String parentEmail) {

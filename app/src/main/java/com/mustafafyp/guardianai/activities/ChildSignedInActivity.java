@@ -8,12 +8,16 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.TextView;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 import android.widget.Toast;
-
+import android.content.Context;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
-
+import java.util.ArrayList;
+import com.mustafafyp.guardianai.models.AppModel;
+import android.widget.Button;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.mustafafyp.guardianai.R;
@@ -29,6 +33,8 @@ import com.mustafafyp.guardianai.utils.Validators;
 
 public class ChildSignedInActivity extends AppCompatActivity implements OnPermissionExplanationListener, OnPasswordValidationListener {
 	public static final int JOB_ID = 38;
+	private ArrayList<AppModel> blockedApps = new ArrayList<>(); // List to store blocked apps
+	private DatabaseReference appsRef;
 	public static final String CHILD_EMAIL = "childEmail";
 	private static final String TAG = "ChildSignedInTAG";
 	private FirebaseAuth auth;
@@ -40,6 +46,10 @@ public class ChildSignedInActivity extends AppCompatActivity implements OnPermis
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+		// Check if we have Usage Stats Permission
+		if (!hasUsageStatsPermission()) {
+			startActivity(new Intent(android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS));
+		}
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_child_signed_in);
 		
@@ -76,8 +86,32 @@ public class ChildSignedInActivity extends AppCompatActivity implements OnPermis
 				startInformationDialogFragment(getResources().getString(R.string.you_re_offline_ncheck_your_connection_and_try_again));
 			
 		}
+		// inside onCreate...
+		Button btnLink = findViewById(R.id.btnLinkParent);
+
+		btnLink.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				// Check Camera Permission first (Optional but recommended)
+				if (checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+					requestPermissions(new String[]{android.Manifest.permission.CAMERA}, 100);
+				} else {
+					// Open Scanner
+					startActivity(new Intent(ChildSignedInActivity.this, ScanQRActivity.class));
+				}
+			}
+		});
+		startMonitoringService();
 	}
-	
+
+	private void startMonitoringService() {
+		Intent serviceIntent = new Intent(this, com.mustafafyp.guardianai.services.MainForegroundService.class);
+		if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+			startForegroundService(serviceIntent);
+		} else {
+			startService(serviceIntent);
+		}
+	}
 	private void startMainForegroundService(String email) {
 		Intent intent = new Intent(this, MainForegroundService.class);
 		intent.putExtra(CHILD_EMAIL, email);
@@ -166,6 +200,11 @@ public class ChildSignedInActivity extends AppCompatActivity implements OnPermis
         jobScheduler.cancel(JOB_ID);
         //Job cancelled
     }*/
-	
-	
+
+	private boolean hasUsageStatsPermission() {
+		android.app.AppOpsManager appOps = (android.app.AppOpsManager) getSystemService(Context.APP_OPS_SERVICE);
+		int mode = appOps.checkOpNoThrow(android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
+				android.os.Process.myUid(), getPackageName());
+		return mode == android.app.AppOpsManager.MODE_ALLOWED;
+	}
 }

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="#C0392B"
+    android:padding="32dp">
+
+    <ImageView
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:src="@drawable/ic_lock"
+        android:tint="@android:color/white"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="App Locked!"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/white"
+        android:layout_marginTop="24dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Your guardian has limited access to this app."
+        android:textColor="#ECF0F1"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:layout_marginTop="16dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Want to unlock it for 15 minutes?"
+        android:textColor="@android:color/white"
+        android:textStyle="bold"
+        android:layout_marginTop="40dp"/>
+
+    <Button
+        android:id="@+id/btnSolveQuiz"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:text="Solve a Quiz to Unlock"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#C0392B"
+        android:backgroundTint="@android:color/white"
+        android:layout_marginTop="16dp"/>
+
+</LinearLayout>

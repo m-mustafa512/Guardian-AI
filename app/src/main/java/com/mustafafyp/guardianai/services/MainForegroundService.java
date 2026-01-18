@@ -23,7 +23,7 @@ import android.os.IBinder;
 import android.provider.ContactsContract;
 import android.telephony.TelephonyManager;
 import android.util.Log;
-
+import com.mustafafyp.guardianai.models.AppModel;
 import com.mustafafyp.guardianai.services.GuardianVpnService;
 
 import androidx.annotation.NonNull;
@@ -52,6 +52,9 @@ import com.mustafafyp.guardianai.models.Child;
 import com.mustafafyp.guardianai.models.Contact;
 import com.mustafafyp.guardianai.models.ScreenLock;
 
+import android.app.usage.UsageStats;
+import android.app.usage.UsageStatsManager;
+import java.util.TreeMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -68,6 +71,11 @@ import java.util.concurrent.TimeUnit;
 import static com.mustafafyp.guardianai.NotificationChannelCreator.CHANNEL_ID;
 
 public class MainForegroundService extends Service {
+	private ArrayList<AppModel> blockedApps = new ArrayList<>();
+	private DatabaseReference appsRef;
+	private Handler monitorHandler = new Handler();
+	private Runnable monitorRunnable;
+	private boolean isServiceRunning = false;
 	public static final int NOTIFICATION_ID = 27;
 	public static final String TAG = "MainServiceTAG";
 	public static final String BLOCKED_APP_NAME_EXTRA = "com.mansourappdevelopment.androidapp.kidsafe.services.BLOCKED_APP_NAME_EXTRA";
@@ -88,14 +96,14 @@ public class MainForegroundService extends Service {
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
 
-		// --- 1. MODULE 3: HANDLE QUIZ UNLOCK ---
+		// --- 1. HANDLE QUIZ UNLOCK (Must be first) ---
 		if (intent != null && intent.getAction() != null) {
 			if ("ACTION_UNLOCK_APP".equals(intent.getAction())) {
 				String pkgToUnlock = intent.getStringExtra("PACKAGE_NAME");
-				if (pkgToUnlock != null && apps != null) {
+				if (pkgToUnlock != null && blockedApps != null) {
 					Log.i(TAG, "QUIZ SOLVED: Unlocking " + pkgToUnlock);
-					// Find the app in our local list and unblock it
-					for (App app : apps) {
+					// Find the app in our local list and unblock it temporarily
+					for (AppModel app : blockedApps) {
 						if (app.getPackageName().equals(pkgToUnlock)) {
 							app.setBlocked(false); // Unblock locally so the service ignores it
 						}
@@ -107,13 +115,6 @@ public class MainForegroundService extends Service {
 		}
 
 		// --- 2. SETUP FOREGROUND NOTIFICATION (CRASH FIX) ---
-		FirebaseAuth auth = FirebaseAuth.getInstance();
-		FirebaseUser user = auth.getCurrentUser();
-		if (user != null) {
-			childEmail = user.getEmail();
-			uid = user.getUid();
-		}
-
 		// Create Intent for Notification Click
 		Intent notificationIntent = new Intent(this, ChildSignedInActivity.class);
 
@@ -136,159 +137,179 @@ public class MainForegroundService extends Service {
 
 		startForeground(NOTIFICATION_ID, notification);
 
-		// --- 3. START BACKGROUND TASKS ---
+
+		// --- 3. INITIALIZE FIREBASE & USER DATA ---
+		FirebaseAuth auth = FirebaseAuth.getInstance();
+		FirebaseUser user = auth.getCurrentUser();
+
+		if (user != null) {
+			childEmail = user.getEmail();
+			uid = user.getUid();
+
+			if (databaseReference == null) {
+				databaseReference = FirebaseDatabase.getInstance().getReference("users");
+			}
+
+			// --- 4. FIREBASE LISTENERS (Real-time Sync) ---
+
+			// A. BLOCKED APPS LISTENER (Syncs with Parent Switch)
+			appsRef = FirebaseDatabase.getInstance().getReference("users").child(uid).child("installed_apps");
+			appsRef.addValueEventListener(new ValueEventListener() {
+				@Override
+				public void onDataChange(@NonNull DataSnapshot snapshot) {
+					blockedApps.clear(); // Clear old list
+					for (DataSnapshot appSnap : snapshot.getChildren()) {
+						Boolean isBlocked = appSnap.child("blocked").getValue(Boolean.class);
+						String packageName = appSnap.child("packageName").getValue(String.class);
+
+						if (isBlocked != null && isBlocked && packageName != null) {
+							blockedApps.add(new AppModel(packageName, true));
+							Log.d("GuardianAI", "Blocked App Updated: " + packageName);
+						}
+					}
+				}
+
+				@Override
+				public void onCancelled(@NonNull DatabaseError error) {}
+			});
+
+			// B. GEOFENCE LISTENER
+			Query locationQuery = databaseReference.child("childs").child(uid).child("location");
+			locationQuery.addValueEventListener(new ValueEventListener() {
+				@Override
+				public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+					if (dataSnapshot.exists()) {
+						setFence(dataSnapshot);
+					}
+				}
+				@Override
+				public void onCancelled(@NonNull DatabaseError databaseError) {}
+			});
+
+			// C. WEB FILTER LISTENER
+			Query webFilterQuery = databaseReference.child("childs").child(uid).child("web_filter");
+			webFilterQuery.addValueEventListener(new ValueEventListener() {
+				@Override
+				public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+					if (dataSnapshot.exists()) {
+						boolean blockAdult = Boolean.TRUE.equals(dataSnapshot.child("block_adult").getValue(Boolean.class));
+						boolean blockGambling = Boolean.TRUE.equals(dataSnapshot.child("block_gambling").getValue(Boolean.class));
+
+						if (blockAdult || blockGambling) {
+							Intent vpnIntent = new Intent(MainForegroundService.this, GuardianVpnService.class);
+							startService(vpnIntent);
+						} else {
+							Intent vpnIntent = new Intent(MainForegroundService.this, GuardianVpnService.class);
+							stopService(vpnIntent);
+						}
+					}
+				}
+				@Override
+				public void onCancelled(@NonNull DatabaseError databaseError) {}
+			});
+
+			// D. SCREEN LOCK LISTENER
+			Query screenTimeQuery = databaseReference.child("childs").child(uid).child("screenLock");
+			screenTimeQuery.addValueEventListener(new ValueEventListener() {
+				@Override
+				public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+					if (dataSnapshot.exists()) {
+						ScreenLock screenLock = dataSnapshot.getValue(ScreenLock.class);
+						if (screenLock != null && screenLock.isLocked()) {
+							if (screenTimeReceiver == null) {
+								screenTimeReceiver = new ScreenTimeReceiver(screenLock);
+								IntentFilter filter = new IntentFilter();
+								filter.addAction(Intent.ACTION_SCREEN_ON);
+								filter.addAction(Intent.ACTION_SCREEN_OFF);
+								registerReceiver(screenTimeReceiver, filter);
+							}
+						} else {
+							if (screenTimeReceiver != null) {
+								try { unregisterReceiver(screenTimeReceiver); } catch (Exception e) {}
+								screenTimeReceiver = null;
+							}
+						}
+					}
+				}
+				@Override
+				public void onCancelled(@NonNull DatabaseError databaseError) {}
+			});
+
+			// --- 5. REGISTER LOCAL RECEIVERS (Calls, SMS, Installs) ---
+			// (Wrapped in try-catch or checks to prevent double registration crashes)
+
+			if (phoneStateReceiver == null) {
+				phoneStateReceiver = new PhoneStateReceiver(user);
+				registerReceiver(phoneStateReceiver, new IntentFilter(TelephonyManager.ACTION_PHONE_STATE_CHANGED));
+			}
+
+			if (smsReceiver == null) {
+				smsReceiver = new SmsReceiver(user);
+				registerReceiver(smsReceiver, new IntentFilter("android.provider.Telephony.SMS_RECEIVED"));
+			}
+
+			if (appInstalledReceiver == null) {
+				appInstalledReceiver = new AppInstalledReceiver(user);
+				IntentFilter filter = new IntentFilter();
+				filter.addAction(Intent.ACTION_PACKAGE_ADDED);
+				filter.addDataScheme("package");
+				registerReceiver(appInstalledReceiver, filter);
+			}
+		}
 
 
-		// Initialize Database Reference if null
-		// --- 3. START BACKGROUND TASKS (With Safety Checks) ---
-
-		// Check Location Permission before calling
+		// --- 6. START PERIODIC TASKS (Safety Checks) ---
 		if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
 			getUserLocation();
 		}
 
-		// FIX: Check Contact Permission before calling (Stops the Crash)
 		if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-			ArrayList<Contact> contacts = getContacts();
-			uploadContacts(contacts);
+			// Run contacts upload on a background thread to avoid ANR
+			new Thread(new Runnable() {
+				@Override
+				public void run() {
+					ArrayList<Contact> contacts = getContacts();
+					uploadContacts(contacts);
+				}
+			}).start();
 		}
 
-		// Initialize Database Reference if null
-		if (databaseReference == null) {
-			databaseReference = FirebaseDatabase.getInstance().getReference("users");
-		}
 
-		// --- 4. FIREBASE LISTENERS ---
+		// --- 7. START APP MONITORING LOOP ---
+		if (!isServiceRunning) {
+			uploadInstalledApps(); // Upload list once
+			isServiceRunning = true;
 
-		// A. APPS LISTENER
-		Query appsQuery = databaseReference.child("childs").child(uid).child("apps");
-		appsQuery.addValueEventListener(new ValueEventListener() {
-			@Override
-			public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-				if (dataSnapshot.exists()) {
-					getApps(); // Refresh blocked list
-				}
-			}
-			@Override
-			public void onCancelled(@NonNull DatabaseError databaseError) {}
-		});
+			monitorRunnable = new Runnable() {
+				@Override
+				public void run() {
+					String currentApp = getTopAppPackageName();
 
-		// B. GEOFENCE LISTENER
-		Query locationQuery = databaseReference.child("childs").child(uid).child("location");
-		locationQuery.addValueEventListener(new ValueEventListener() {
-			@Override
-			public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-				if (dataSnapshot.exists()) {
-					setFence(dataSnapshot);
-				}
-			}
-			@Override
-			public void onCancelled(@NonNull DatabaseError databaseError) {}
-		});
+					// CHECK IF BLOCKED
+					if (blockedApps != null && !blockedApps.isEmpty()) {
+						for (AppModel app : blockedApps) {
+							// If app matches AND is blocked
+							if (app.getPackageName().equals(currentApp) && app.isBlocked()) {
 
-		// C. MODULE 5: WEB FILTER LISTENER (Integration)
-		Query webFilterQuery = databaseReference.child("childs").child(uid).child("web_filter");
-		webFilterQuery.addValueEventListener(new ValueEventListener() {
-			@Override
-			public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-				if (dataSnapshot.exists()) {
-					// Check if any blocking rule is true (Adult, Gambling, etc.)
-					boolean blockAdult = Boolean.TRUE.equals(dataSnapshot.child("block_adult").getValue(Boolean.class));
-					boolean blockGambling = Boolean.TRUE.equals(dataSnapshot.child("block_gambling").getValue(Boolean.class));
-
-					if (blockAdult || blockGambling) {
-						// Start VPN Service
-						Intent vpnIntent = new Intent(MainForegroundService.this, GuardianVpnService.class);
-						startService(vpnIntent);
-						Log.i(TAG, "Web Filter: ENABLED");
-					} else {
-						// Stop VPN Service
-						Intent vpnIntent = new Intent(MainForegroundService.this, GuardianVpnService.class);
-						stopService(vpnIntent);
-						Log.i(TAG, "Web Filter: DISABLED");
-					}
-				}
-			}
-			@Override
-			public void onCancelled(@NonNull DatabaseError databaseError) {}
-		});
-
-		// D. SCREEN LOCK LISTENER
-		Query screenTimeQuery = databaseReference.child("childs").child(uid).child("screenLock");
-		screenTimeQuery.addValueEventListener(new ValueEventListener() {
-			@Override
-			public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-				if (dataSnapshot.exists()) {
-					ScreenLock screenLock = dataSnapshot.getValue(ScreenLock.class);
-					if (screenLock != null && screenLock.isLocked()) {
-						// Register lock receiver if not already done
-						if (screenTimeReceiver == null) {
-							screenTimeReceiver = new ScreenTimeReceiver(screenLock);
-							IntentFilter filter = new IntentFilter();
-							filter.addAction(Intent.ACTION_SCREEN_ON);
-							filter.addAction(Intent.ACTION_SCREEN_OFF);
-							registerReceiver(screenTimeReceiver, filter);
-						}
-					} else {
-						// Unregister if unlocked
-						if (screenTimeReceiver != null) {
-							try { unregisterReceiver(screenTimeReceiver); } catch(Exception e){}
-							screenTimeReceiver = null;
+								Log.d(TAG, "Violation detected! Locking " + currentApp);
+								Intent lockIntent = new Intent(getApplicationContext(), com.mustafafyp.guardianai.activities.LockScreenActivity.class);
+								lockIntent.putExtra("PACKAGE_NAME", currentApp);
+								lockIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+								startActivity(lockIntent);
+								break;
+							}
 						}
 					}
+					// Repeat every 1 second
+					monitorHandler.postDelayed(this, 1000);
 				}
-			}
-			@Override
-			public void onCancelled(@NonNull DatabaseError databaseError) {}
-		});
-
-		// --- 5. REGISTER LOCAL RECEIVERS ---
-
-		// Phone Calls
-		if (phoneStateReceiver == null) {
-			phoneStateReceiver = new PhoneStateReceiver(user);
-			IntentFilter callIntentFilter = new IntentFilter(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
-			registerReceiver(phoneStateReceiver, callIntentFilter);
+			};
+			monitorHandler.post(monitorRunnable);
 		}
-
-		// SMS
-		if (smsReceiver == null) {
-			smsReceiver = new SmsReceiver(user);
-			IntentFilter smsIntentFilter = new IntentFilter("android.provider.Telephony.SMS_RECEIVED");
-			registerReceiver(smsReceiver, smsIntentFilter);
-		}
-
-		// App Installs (Dynamic Registration)
-		if (appInstalledReceiver == null) {
-			appInstalledReceiver = new AppInstalledReceiver(user);
-			IntentFilter appInstalledIntentFilter = new IntentFilter();
-			appInstalledIntentFilter.addAction(Intent.ACTION_PACKAGE_ADDED);
-			appInstalledIntentFilter.addDataScheme("package");
-			registerReceiver(appInstalledReceiver, appInstalledIntentFilter);
-		}
-
-		if (appRemovedReceiver == null) {
-			appRemovedReceiver = new AppRemovedReceiver(user);
-			IntentFilter appRemovedIntentFilter = new IntentFilter();
-			appRemovedIntentFilter.addAction(Intent.ACTION_PACKAGE_REMOVED);
-			appRemovedIntentFilter.addDataScheme("package");
-			registerReceiver(appRemovedReceiver, appRemovedIntentFilter);
-		}
-
-		// --- 6. UPLOAD DAILY STATS (Periodic Task) ---
-		final Handler handler = new Handler();
-		handler.post(new Runnable() {
-			@Override
-			public void run() {
-				uploadDailySummary();
-				// Run again after 5 minutes
-				handler.postDelayed(this, 300000);
-			}
-		});
 
 		return START_STICKY;
 	}
-	
+
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
@@ -311,12 +332,12 @@ public class MainForegroundService extends Service {
 			unregisterReceiver(screenTimeReceiver);
 		}
 	}
-	
+
 	@Override
 	public IBinder onBind(Intent intent) {
 		return null;
 	}
-	
+
 	public void getApps() {
 		Query query = databaseReference.child("childs").orderByChild("email").equalTo(childEmail);
 		query.addListenerForSingleValueEvent(new ValueEventListener() {
@@ -327,28 +348,28 @@ public class MainForegroundService extends Service {
 					//Log.i(TAG, "onDataChange: dataSnapshot as a string: "+dataSnapshot.toString());
 					//Log.i(TAG, "onDataChange: dataSnapshot children: " + dataSnapshot.getChildren());
 					//Log.i(TAG, "onDataChange: dataSnapshot key: " + dataSnapshot.getKey());
-					
+
 					DataSnapshot nodeShot = dataSnapshot.getChildren().iterator().next();
 					Child child = nodeShot.getValue(Child.class);
 					apps = child.getApps();
-					
+
 					Log.i(TAG, "onDataChange: child name: " + child.getName());
 					//updateAppStats(apps);
-					
+
 				}
 			}
-			
+
 			@Override
 			public void onCancelled(@NonNull DatabaseError databaseError) {
-			
+
 			}
 		});
 	}
-	
+
 	private void getUserLocation() {
 		Log.i(TAG, "getUserLocation: executed");
 		LocationManager locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-		
+
 		LocationListener locationListener = new LocationListener() {
 			@Override
 			public void onLocationChanged(Location location) {
@@ -360,33 +381,33 @@ public class MainForegroundService extends Service {
 					Log.i(TAG, "onLocationChanged: location is null");
 				}
 			}
-			
+
 			@Override
 			public void onStatusChanged(String provider, int status, Bundle extras) {
-			
+
 			}
-			
+
 			@Override
 			public void onProviderEnabled(String provider) {
-			
+
 			}
-			
+
 			@Override
 			public void onProviderDisabled(String provider) {
-			
+
 			}
 		};
-		
+
 		//these two statements will be only executed when the permission is granted.
 		if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-			
+
 			locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, LOCATION_UPDATE_INTERVAL, LOCATION_UPDATE_DISPLACEMENT, locationListener);
 			locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, LOCATION_UPDATE_INTERVAL, LOCATION_UPDATE_DISPLACEMENT, locationListener);
 			return;
 		}
-		
+
 	}
-	
+
 	private void addUserLocationToDatabase(Location location, String uid) {
 		double latitude = location.getLatitude();
 		double longitude = location.getLongitude();
@@ -395,12 +416,12 @@ public class MainForegroundService extends Service {
 		update.put("longitude", longitude);
 		databaseReference.child("childs").child(uid).child("location").updateChildren(update);
 	}
-	
+
 	private void uploadContacts(ArrayList<Contact> contacts) {
 		databaseReference.child("childs").child(uid).child("contacts").setValue(contacts);
-		
+
 	}
-	
+
 	private void setFence(DataSnapshot dataSnapshot) {
 		final com.mustafafyp.guardianai.models.Location childLocation = dataSnapshot.getValue(com.mustafafyp.guardianai.models.Location.class);
 		Log.i(TAG, "setFence: getLatitude " + childLocation.getLatitude());
@@ -410,7 +431,7 @@ public class MainForegroundService extends Service {
 		Log.i(TAG, "setFence: getFenceCenterLatitude " + childLocation.getFenceCenterLatitude());
 		Log.i(TAG, "setFence: getFenceCenterLongitude " + childLocation.getFenceCenterLongitude());
 		Log.i(TAG, "setFence: getFenceDiameter " + childLocation.getFenceDiameter());
-		
+
 		if (childLocation.isGeoFence()) {
 			Log.i(TAG, "setFence: true");
 			LocationManager locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
@@ -421,7 +442,7 @@ public class MainForegroundService extends Service {
 					if (location != null) {
 						float[] distanceInMeters = new float[1];
 						Location.distanceBetween(childLocation.getFenceCenterLatitude(), childLocation.getFenceCenterLongitude(), location.getLatitude(), location.getLongitude(), distanceInMeters);
-						
+
 						boolean outOfFence = distanceInMeters[0] > childLocation.getFenceDiameter();
 						if (outOfFence) {
 							Log.i(TAG, "setFence: OUT OF FENCE");
@@ -433,41 +454,41 @@ public class MainForegroundService extends Service {
 						Log.i(TAG, "setFence: location is null");
 					}
 				}
-				
+
 				@Override
 				public void onStatusChanged(String provider, int status, Bundle extras) {
-				
+
 				}
-				
+
 				@Override
 				public void onProviderEnabled(String provider) {
-				
+
 				}
-				
+
 				@Override
 				public void onProviderDisabled(String provider) {
-				
+
 				}
 			};
-			
+
 			//these two statements will be only executed when the permission is granted.
 			if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-				
+
 				locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, LOCATION_UPDATE_INTERVAL, LOCATION_UPDATE_DISPLACEMENT, locationListener);
 				locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, LOCATION_UPDATE_INTERVAL, LOCATION_UPDATE_DISPLACEMENT, locationListener);
 				return;
 			}
-			
-			
+
+
 		}
-		
+
 	}
 
     /*private void changeDNS(String primaryDNS, String secondaryDNS) {
         Settings.System.putString(getContentResolver(), Settings.System.WIFI_STATIC_DNS1, primaryDNS);  //TODO:: DEPRECATED
         Settings.System.putString(getContentResolver(), Settings.System.WIFI_STATIC_DNS2, secondaryDNS);
     }*/
-	
+
 	public ArrayList<Contact> getContacts() {
 		ArrayList<Contact> contacts = new ArrayList<>();
 		ContentResolver contentResolver = getApplicationContext().getContentResolver();
@@ -477,14 +498,14 @@ public class MainForegroundService extends Service {
 				String id = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts._ID));
 				if (cursor.getInt(cursor.getColumnIndex(ContactsContract.Contacts.HAS_PHONE_NUMBER)) > 0) {
 					Cursor cursorInfo = contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null, ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = ?", new String[]{id}, null);
-					
+
 					while (cursorInfo.moveToNext()) {
 						String contactName = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME));
 						String contactNumber = cursorInfo.getString(cursorInfo.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
 						Contact contact = new Contact(contactName, contactNumber);
 						contacts.add(contact);
 					}
-					
+
 					cursorInfo.close();
 				}
 			}
@@ -492,7 +513,7 @@ public class MainForegroundService extends Service {
 		}
 		return contacts;
 	}
-	
+
 	private void getInstalledApplications(/*ArrayList<App> onlineAppsList*/) {
 		PackageManager packageManager = getPackageManager();
 		List<ApplicationInfo> applicationInfoList = packageManager.getInstalledApplications(0);
@@ -508,7 +529,7 @@ public class MainForegroundService extends Service {
 		}
 		prepareData(applicationInfoList, packageManager/*, onlineAppsList*/);
 	}
-	
+
 	private void prepareData(List<ApplicationInfo> applicationInfoList, PackageManager packageManager/*, ArrayList<App> onlineAppsList*/) {
 		ArrayList<App> appsList = new ArrayList<>();
 		for (ApplicationInfo applicationInfo : applicationInfoList) {
@@ -535,30 +556,18 @@ public class MainForegroundService extends Service {
             }
 
         }*/
-		
+
 		uploadApps(appsList);
-		
+
 	}
-	
+
 	private void uploadApps(ArrayList<App> appsList) {
 		databaseReference.child("childs").child(uid).child("apps").setValue(appsList);
 		Log.i(TAG, "uploadApps: done");
 	}
-	
-	public String getTopAppPackageName() {
-		String appPackageName = "";
-		try {
-			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-				appPackageName = getLollipopForegroundAppPackageName();
-			} else {
-				appPackageName = getKitkatForegroundAppPackageName();
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return appPackageName;
-	}
-	
+
+
+
 	@RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
 	private String getLollipopForegroundAppPackageName() {
 		//Log.i(TAG, "getLollipopForegroundAppPackageName: executed");
@@ -570,8 +579,8 @@ public class MainForegroundService extends Service {
 			if (foregroundApps.size() == 0) {
 				Log.i(TAG, "getLollipopForegroundAppPackageName: queryUsageSize: empty");
 			}
-			
-			
+
+
 			long recentTime = 0;
 			String recentPkg = "";
 			for (UsageStats stats : foregroundApps) {
@@ -582,44 +591,44 @@ public class MainForegroundService extends Service {
 					recentTime = stats.getLastTimeStamp();
 					recentPkg = stats.getPackageName();
 				}
-				
+
 			}
-			
+
 			//Log.i(TAG, "getLollipopForegroundAppPackageName: appPackageName: " + recentPkg);
 			return recentPkg;
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		
-		
+
+
 		return "";
 	}
-	
+
 	private String getKitkatForegroundAppPackageName() {
 		ActivityManager activityManager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
 		List<ActivityManager.RunningAppProcessInfo> tasks = activityManager.getRunningAppProcesses();
 		return tasks.get(0).processName;
 	}
-	
+
 	class LockerThread implements Runnable {
-		
+
 		private Intent intent = null;
-		
+
 		public LockerThread() {
 			intent = new Intent(MainForegroundService.this, BlockedAppActivity.class);
 			intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 		}
-		
+
 		@Override
 		public void run() {
 			while (true) {
 				//Log.i(TAG, "run: thread running");
-				
+
 				if (apps != null) {
-					
+
 					String foregroundAppPackageName = getTopAppPackageName();
 					Log.i(TAG, "run: foreground app: " + foregroundAppPackageName);
-					
+
 					//TODO:: need to handle com.google.android.gsf &  com.sec.android.provider.badge
 					for (final App app : apps) {
 						//Log.i(TAG, "run: app name: " + app.getAppName() + " blocked: " + app.isBlocked() + "\n");
@@ -639,10 +648,10 @@ public class MainForegroundService extends Service {
                             } else
                                 Log.i(TAG, "run: ScreenLock is null");
                         }*/
-						
+
 					}
 				}
-				
+
 				try {
 					Thread.sleep(1000);
 				} catch (InterruptedException e) {
@@ -650,8 +659,9 @@ public class MainForegroundService extends Service {
 				}
 			}
 		}
-		
+
 	}
+
 	private void uploadDailySummary() {
 		// 1. Initialize the UsageStatsManager
 		UsageStatsManager usageStatsManager = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);
@@ -705,4 +715,58 @@ public class MainForegroundService extends Service {
 		databaseReference.child("childs").child(uid).updateChildren(summaryUpdate);
 	}
 
+	// Keep this ONE copy at the bottom of your class
+	private String getTopAppPackageName() {
+		String topPackageName = "";
+		if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+			UsageStatsManager usage = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);
+			long time = System.currentTimeMillis();
+			List<UsageStats> stats = usage.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, time - 1000 * 10, time);
+
+			if (stats != null) {
+				TreeMap<Long, UsageStats> sortedMap = new TreeMap<>();
+				for (UsageStats usageStats : stats) {
+					sortedMap.put(usageStats.getLastTimeUsed(), usageStats);
+				}
+				if (!sortedMap.isEmpty()) {
+					topPackageName = sortedMap.get(sortedMap.lastKey()).getPackageName();
+				}
+			}
+		}
+		return topPackageName;
+	}
+	// --- HELPER METHOD TO UPLOAD APPS ---
+	private void uploadInstalledApps() {
+		final PackageManager pm = getPackageManager();
+		// Get a list of installed apps
+		List<ApplicationInfo> packages = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+
+		FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+		if (user == null) return;
+
+		DatabaseReference appsRef = FirebaseDatabase.getInstance()
+				.getReference("users")
+				.child(user.getUid()) // Child ID
+				.child("installed_apps");
+
+		for (ApplicationInfo packageInfo : packages) {
+			// Filter out system apps to keep the list clean (Optional)
+			if ((packageInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
+				String appName = pm.getApplicationLabel(packageInfo).toString();
+				String packageName = packageInfo.packageName;
+
+				// Create a clean map to upload
+				HashMap<String, Object> appData = new HashMap<>();
+				appData.put("name", appName);
+				appData.put("packageName", packageName);
+
+				// Use packageName as the key (replace dots with underscores for Firebase keys)
+				String safeKey = packageName.replace(".", "_");
+
+				// We use updateChildren to ensure we don't accidentally overwrite "blocked" status
+				// if it already exists in the database
+				appsRef.child(safeKey).updateChildren(appData);
+			}
+		}
+	}
 }

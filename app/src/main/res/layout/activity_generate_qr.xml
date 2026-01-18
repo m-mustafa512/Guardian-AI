@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="32dp"
+    android:background="#F5F6FA">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Link a Child Device"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="#2C3E50"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Scan this code with the Child's App"
+        android:layout_marginTop="8dp"
+        android:textColor="#7F8C8D"/>
+
+    <ImageView
+        android:id="@+id/imgQRCode"
+        android:layout_width="250dp"
+        android:layout_height="250dp"
+        android:layout_marginTop="32dp"
+        android:background="#FFFFFF"
+        android:padding="10dp"/>
+
+    <Button
+        android:id="@+id/btnDone"
+        android:layout_width="match_parent"
+        android:layout_height="55dp"
+        android:text="Done"
+        android:layout_marginTop="40dp"
+        android:backgroundTint="#2ECC71"/>
+
+</LinearLayout>

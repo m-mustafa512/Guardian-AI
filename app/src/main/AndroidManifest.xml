@@ -6,6 +6,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission
         android:name="android.permission.PACKAGE_USAGE_STATS"
@@ -129,6 +130,21 @@
             </intent-filter>
         </service>
         <activity android:name=".activities.WebFilterActivity" />
+        <activity android:name=".activities.GenerateQRActivity"
+            android:label="Link Device"
+            android:parentActivityName=".activities.ParentSignedInActivity"/>
+
+        <activity android:name=".activities.ScanQRActivity"
+            android:label="Scan Code"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".activities.LockScreenActivity"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            android:launchMode="singleInstance"
+            android:taskAffinity=""
+            android:excludeFromRecents="true" />
+        <activity android:name=".activities.QuizActivity"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"
+            android:screenOrientation="portrait"/>
 
     </application>
 
