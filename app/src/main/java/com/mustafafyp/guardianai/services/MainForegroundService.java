@@ -24,6 +24,8 @@ import android.provider.ContactsContract;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
+import com.mustafafyp.guardianai.services.GuardianVpnService;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
@@ -82,66 +84,96 @@ public class MainForegroundService extends Service {
 	private String childEmail;
 	private FirebaseDatabase firebaseDatabase = FirebaseDatabase.getInstance();
 	private DatabaseReference databaseReference = firebaseDatabase.getReference("users");
-	
-	
-	@Override
-	public void onCreate() {
-		super.onCreate();
-		executorService = Executors.newSingleThreadExecutor();
-		ActivityManager activityManager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-		LockerThread thread = new LockerThread();
-		executorService.submit(thread);
-		new Thread(new Runnable() {
-			@Override
-			public void run() {
-				getInstalledApplications();
-			}
-		}).start();
-		Log.i(TAG, "onCreate: executed");
-	}
-	
+
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-		//String childEmail = intent.getStringExtra(CHILD_EMAIL);
-		//String notificationContent = "Monitoring device";
-		
+
+		// --- 1. MODULE 3: HANDLE QUIZ UNLOCK ---
+		if (intent != null && intent.getAction() != null) {
+			if ("ACTION_UNLOCK_APP".equals(intent.getAction())) {
+				String pkgToUnlock = intent.getStringExtra("PACKAGE_NAME");
+				if (pkgToUnlock != null && apps != null) {
+					Log.i(TAG, "QUIZ SOLVED: Unlocking " + pkgToUnlock);
+					// Find the app in our local list and unblock it
+					for (App app : apps) {
+						if (app.getPackageName().equals(pkgToUnlock)) {
+							app.setBlocked(false); // Unblock locally so the service ignores it
+						}
+					}
+				}
+				// Return immediately so we don't restart the whole service logic
+				return START_STICKY;
+			}
+		}
+
+		// --- 2. SETUP FOREGROUND NOTIFICATION (CRASH FIX) ---
 		FirebaseAuth auth = FirebaseAuth.getInstance();
 		FirebaseUser user = auth.getCurrentUser();
-		childEmail = user.getEmail();
-		uid = user.getUid();
-		
-		Intent notificationIntent = new Intent(this, ChildSignedInActivity.class);
-		PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
-		
-		Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-				//.setContentTitle(notificationContent)
-				.setSmallIcon(R.drawable.ic_kidsafe).setContentIntent(pendingIntent).build();
-		
-		startForeground(NOTIFICATION_ID, notification);
-		
-		getUserLocation();
-		
-		ArrayList<Contact> contacts = getContacts();
-		uploadContacts(contacts);
+		if (user != null) {
+			childEmail = user.getEmail();
+			uid = user.getUid();
+		}
 
-        /*FirebaseDatabase firebaseDatabase = FirebaseDatabase.getInstance();
-        databaseReference = firebaseDatabase.getReference("users");*/
-		
+		// Create Intent for Notification Click
+		Intent notificationIntent = new Intent(this, ChildSignedInActivity.class);
+
+		// FIX FOR ANDROID 12+ CRASH (Must use FLAG_IMMUTABLE)
+		int pendingFlags;
+		if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+			pendingFlags = PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT;
+		} else {
+			pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT;
+		}
+
+		PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, pendingFlags);
+
+		Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+				.setContentTitle("GuardianAI Active")
+				.setContentText("Monitoring child device...")
+				.setSmallIcon(R.drawable.ic_kidsafe) // Ensure this icon exists
+				.setContentIntent(pendingIntent)
+				.build();
+
+		startForeground(NOTIFICATION_ID, notification);
+
+		// --- 3. START BACKGROUND TASKS ---
+
+
+		// Initialize Database Reference if null
+		// --- 3. START BACKGROUND TASKS (With Safety Checks) ---
+
+		// Check Location Permission before calling
+		if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+			getUserLocation();
+		}
+
+		// FIX: Check Contact Permission before calling (Stops the Crash)
+		if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+			ArrayList<Contact> contacts = getContacts();
+			uploadContacts(contacts);
+		}
+
+		// Initialize Database Reference if null
+		if (databaseReference == null) {
+			databaseReference = FirebaseDatabase.getInstance().getReference("users");
+		}
+
+		// --- 4. FIREBASE LISTENERS ---
+
+		// A. APPS LISTENER
 		Query appsQuery = databaseReference.child("childs").child(uid).child("apps");
 		appsQuery.addValueEventListener(new ValueEventListener() {
 			@Override
 			public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
 				if (dataSnapshot.exists()) {
-					getApps();
+					getApps(); // Refresh blocked list
 				}
 			}
-			
 			@Override
-			public void onCancelled(@NonNull DatabaseError databaseError) {
-			
-			}
+			public void onCancelled(@NonNull DatabaseError databaseError) {}
 		});
-		
+
+		// B. GEOFENCE LISTENER
 		Query locationQuery = databaseReference.child("childs").child(uid).child("location");
 		locationQuery.addValueEventListener(new ValueEventListener() {
 			@Override
@@ -150,15 +182,100 @@ public class MainForegroundService extends Service {
 					setFence(dataSnapshot);
 				}
 			}
-			
 			@Override
-			public void onCancelled(@NonNull DatabaseError databaseError) {
-			
-			}
+			public void onCancelled(@NonNull DatabaseError databaseError) {}
 		});
 
+		// C. MODULE 5: WEB FILTER LISTENER (Integration)
+		Query webFilterQuery = databaseReference.child("childs").child(uid).child("web_filter");
+		webFilterQuery.addValueEventListener(new ValueEventListener() {
+			@Override
+			public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+				if (dataSnapshot.exists()) {
+					// Check if any blocking rule is true (Adult, Gambling, etc.)
+					boolean blockAdult = Boolean.TRUE.equals(dataSnapshot.child("block_adult").getValue(Boolean.class));
+					boolean blockGambling = Boolean.TRUE.equals(dataSnapshot.child("block_gambling").getValue(Boolean.class));
 
-		// Add this inside onStartCommand near the bottom
+					if (blockAdult || blockGambling) {
+						// Start VPN Service
+						Intent vpnIntent = new Intent(MainForegroundService.this, GuardianVpnService.class);
+						startService(vpnIntent);
+						Log.i(TAG, "Web Filter: ENABLED");
+					} else {
+						// Stop VPN Service
+						Intent vpnIntent = new Intent(MainForegroundService.this, GuardianVpnService.class);
+						stopService(vpnIntent);
+						Log.i(TAG, "Web Filter: DISABLED");
+					}
+				}
+			}
+			@Override
+			public void onCancelled(@NonNull DatabaseError databaseError) {}
+		});
+
+		// D. SCREEN LOCK LISTENER
+		Query screenTimeQuery = databaseReference.child("childs").child(uid).child("screenLock");
+		screenTimeQuery.addValueEventListener(new ValueEventListener() {
+			@Override
+			public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+				if (dataSnapshot.exists()) {
+					ScreenLock screenLock = dataSnapshot.getValue(ScreenLock.class);
+					if (screenLock != null && screenLock.isLocked()) {
+						// Register lock receiver if not already done
+						if (screenTimeReceiver == null) {
+							screenTimeReceiver = new ScreenTimeReceiver(screenLock);
+							IntentFilter filter = new IntentFilter();
+							filter.addAction(Intent.ACTION_SCREEN_ON);
+							filter.addAction(Intent.ACTION_SCREEN_OFF);
+							registerReceiver(screenTimeReceiver, filter);
+						}
+					} else {
+						// Unregister if unlocked
+						if (screenTimeReceiver != null) {
+							try { unregisterReceiver(screenTimeReceiver); } catch(Exception e){}
+							screenTimeReceiver = null;
+						}
+					}
+				}
+			}
+			@Override
+			public void onCancelled(@NonNull DatabaseError databaseError) {}
+		});
+
+		// --- 5. REGISTER LOCAL RECEIVERS ---
+
+		// Phone Calls
+		if (phoneStateReceiver == null) {
+			phoneStateReceiver = new PhoneStateReceiver(user);
+			IntentFilter callIntentFilter = new IntentFilter(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
+			registerReceiver(phoneStateReceiver, callIntentFilter);
+		}
+
+		// SMS
+		if (smsReceiver == null) {
+			smsReceiver = new SmsReceiver(user);
+			IntentFilter smsIntentFilter = new IntentFilter("android.provider.Telephony.SMS_RECEIVED");
+			registerReceiver(smsReceiver, smsIntentFilter);
+		}
+
+		// App Installs (Dynamic Registration)
+		if (appInstalledReceiver == null) {
+			appInstalledReceiver = new AppInstalledReceiver(user);
+			IntentFilter appInstalledIntentFilter = new IntentFilter();
+			appInstalledIntentFilter.addAction(Intent.ACTION_PACKAGE_ADDED);
+			appInstalledIntentFilter.addDataScheme("package");
+			registerReceiver(appInstalledReceiver, appInstalledIntentFilter);
+		}
+
+		if (appRemovedReceiver == null) {
+			appRemovedReceiver = new AppRemovedReceiver(user);
+			IntentFilter appRemovedIntentFilter = new IntentFilter();
+			appRemovedIntentFilter.addAction(Intent.ACTION_PACKAGE_REMOVED);
+			appRemovedIntentFilter.addDataScheme("package");
+			registerReceiver(appRemovedReceiver, appRemovedIntentFilter);
+		}
+
+		// --- 6. UPLOAD DAILY STATS (Periodic Task) ---
 		final Handler handler = new Handler();
 		handler.post(new Runnable() {
 			@Override
@@ -169,100 +286,6 @@ public class MainForegroundService extends Service {
 			}
 		});
 
-
-        /*Query webFilterQuery = databaseReference.child("childs").child(uid).child("webFilter");
-        webFilterQuery.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                if (dataSnapshot.exists()) {
-                    boolean checked = (boolean) dataSnapshot.getValue();
-                    if (checked) {
-                        Toast.makeText(MainForegroundService.this, "Web Filter Enabled", Toast.LENGTH_SHORT).show();
-                        *//*String primaryDNS = "185.228.168.168";
-                        String secondaryDNS = "185.228.169.168";
-                        changeDNS(primaryDNS, secondaryDNS);
-                        String newDNS1 = Settings.System.getString(getContentResolver(), Settings.System.WIFI_STATIC_DNS1);
-                        String newDNS2 = Settings.System.getString(getContentResolver(), Settings.System.WIFI_STATIC_DNS2);
-                        Log.i(TAG, "onDataChange: new DNS1: " + newDNS1);
-                        Log.i(TAG, "onDataChange: new DNS2: " + newDNS2);*//*
-                    } else {
-                        Toast.makeText(MainForegroundService.this, "Web Filter Disabled", Toast.LENGTH_SHORT).show();
-                        *//*String primaryDNS = "0.0.0.0";
-                        String secondaryDNS = "0.0.0.0";
-                        changeDNS(primaryDNS, secondaryDNS);
-                        String newDNS1 = Settings.System.getString(getContentResolver(), Settings.System.WIFI_STATIC_DNS1);
-                        String newDNS2 = Settings.System.getString(getContentResolver(), Settings.System.WIFI_STATIC_DNS2);
-                        Log.i(TAG, "onDataChange: new DNS1: " + newDNS1);
-                        Log.i(TAG, "onDataChange: new DNS2: " + newDNS2);*//*
-                    }
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-
-            }
-        });*/
-		
-		Query screenTimeQuery = databaseReference.child("childs").child(uid).child("screenLock");
-		screenTimeQuery.addValueEventListener(new ValueEventListener() {
-			@Override
-			public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-				if (dataSnapshot.exists()) {
-					ScreenLock screenLock = dataSnapshot.getValue(ScreenLock.class);
-					Log.i(TAG, "onDataChangeX: hours: " + screenLock.getHours());
-					Log.i(TAG, "onDataChangeX: minutes: " + screenLock.getMinutes());
-					Log.i(TAG, "onDataChangeX: isLocked: " + screenLock.isLocked());
-					
-					if (screenLock.isLocked()) {
-						screenTimeReceiver = new ScreenTimeReceiver(screenLock);
-						IntentFilter screenTimeIntentFilter = new IntentFilter();
-						screenTimeIntentFilter.addAction(Intent.ACTION_SCREEN_ON);
-						screenTimeIntentFilter.addAction(Intent.ACTION_SCREEN_OFF);
-						registerReceiver(screenTimeReceiver, screenTimeIntentFilter);
-					} else {
-						if (screenTimeReceiver != null) {
-							unregisterReceiver(screenTimeReceiver);
-						}
-					}
-				}
-			}
-			
-			@Override
-			public void onCancelled(@NonNull DatabaseError databaseError) {
-			
-			}
-		});
-		
-		phoneStateReceiver = new PhoneStateReceiver(user);
-		IntentFilter callIntentFilter = new IntentFilter(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
-		registerReceiver(phoneStateReceiver, callIntentFilter);
-		
-		smsReceiver = new SmsReceiver(user);
-		IntentFilter smsIntentFilter = new IntentFilter("android.provider.Telephony.SMS_RECEIVED");
-		registerReceiver(smsReceiver, smsIntentFilter);
-		
-		appInstalledReceiver = new AppInstalledReceiver(user);
-		IntentFilter appInstalledIntentFilter = new IntentFilter();
-		appInstalledIntentFilter.addAction(Intent.ACTION_PACKAGE_ADDED);
-		//appInstalledIntentFilter.addAction(Intent.ACTION_PACKAGE_INSTALL);
-		appInstalledIntentFilter.addDataScheme("package");
-		registerReceiver(appInstalledReceiver, appInstalledIntentFilter);
-		
-		appRemovedReceiver = new AppRemovedReceiver(user);
-		IntentFilter appRemovedIntentFilter = new IntentFilter();
-		appRemovedIntentFilter.addAction(Intent.ACTION_PACKAGE_REMOVED);
-		appRemovedIntentFilter.addDataScheme("package");
-		registerReceiver(appRemovedReceiver, appRemovedIntentFilter);
-
-
-        /*screenTimeReceiver = new ScreenTimeReceiver(user);
-        IntentFilter screenTimeIntentFilter = new IntentFilter();
-        screenTimeIntentFilter.addAction(Intent.ACTION_SCREEN_ON);
-        screenTimeIntentFilter.addAction(Intent.ACTION_SCREEN_OFF);
-        registerReceiver(screenTimeReceiver, screenTimeIntentFilter);*/
-		
-		
 		return START_STICKY;
 	}
 	

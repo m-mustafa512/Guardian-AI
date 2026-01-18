@@ -33,6 +33,14 @@
     <uses-feature
         android:name="android.hardware.telephony"
         android:required="false" />
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+        </intent>
+        <package android:name="com.android.settings" />
+        <package android:name="com.google.android.youtube" />
+        <package android:name="com.facebook.katana" />
+    </queries>
 
     <application
         android:name="com.mustafafyp.guardianai.NotificationChannelCreator"
@@ -112,6 +120,15 @@
                 <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
             </intent-filter>
         </receiver>
+
+        <service android:name=".services.GuardianVpnService"
+            android:permission="android.permission.BIND_VPN_SERVICE"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.net.VpnService"/>
+            </intent-filter>
+        </service>
+        <activity android:name=".activities.WebFilterActivity" />
 
     </application>
 

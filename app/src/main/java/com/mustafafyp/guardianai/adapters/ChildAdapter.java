@@ -7,6 +7,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ImageView; // <--- ADD THIS LINE
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -52,50 +53,61 @@ public class ChildAdapter extends RecyclerView.Adapter<ChildAdapter.ChildAdapter
 				.error(R.drawable.ic_face)
 				.into(holder.imgChild);
 
-		// 2. Set Stats (Null checks to prevent crashes)
+		// 2. Set Stats (Safety check to prevent crash)
 		String usage = child.getDailyUsage() != null ? child.getDailyUsage() : "0h 0m";
 		String topApp = child.getTopApp() != null ? child.getTopApp() : "None";
 		holder.txtUsageSummary.setText(usage);
 		holder.txtTopApp.setText(topApp);
 
-		// 3. Handle Lock Button Logic
+		// 3. Handle Lock Button Logic (Using your App's Drawables)
 		boolean isLocked = (child.getScreenLock() != null && child.getScreenLock().isLocked());
 		if (isLocked) {
 			holder.btnQuickLock.setText("Unlock");
-			holder.btnQuickLock.setBackgroundColor(android.graphics.Color.parseColor("#4CAF50")); // Green
+			// Use your existing green button drawable
+			holder.btnQuickLock.setBackgroundResource(R.drawable.button_ok);
 		} else {
 			holder.btnQuickLock.setText("Lock");
-			holder.btnQuickLock.setBackgroundColor(android.graphics.Color.parseColor("#FF5252")); // Red
+			// Use your existing red button drawable
+			holder.btnQuickLock.setBackgroundResource(R.drawable.button_cancel);
 		}
 
 		// --- BUTTON CLICKS ---
 
-		// Lock/Unlock Action
+		// A. Lock/Unlock Action
 		holder.btnQuickLock.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
 				if (onChildClickListener != null) {
 					boolean currentLockState = (child.getScreenLock() != null && child.getScreenLock().isLocked());
-					// Toggle state: If locked, we want to unlock (false). If unlocked, we want to lock (true).
+					// Toggle: If currently locked, we want to unlock (false), and vice versa.
 					onChildClickListener.onBtnLockClick(!currentLockState, child);
 				}
 			}
 		});
 
-		// Map Action
+		// B. Map Action (Module 6)
 		holder.btnQuickLocation.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
 				if (onChildClickListener != null) {
-					// Ideally, we will add a specific map listener later.
-					// For now, this opens the details page (same as clicking the card)
+					// This opens the details page where the Map is located
 					onChildClickListener.onItemClick(position);
-					Toast.makeText(context, "Opening Map Module...", Toast.LENGTH_SHORT).show();
 				}
 			}
 		});
 
-		// Stats/Report Action
+		// C. Web Shield Action (Module 5 - NEW)
+		holder.btnWebShield.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				if (onChildClickListener != null) {
+					// Opens the Web Shield Settings
+					onChildClickListener.onWebFilterClick(child);
+				}
+			}
+		});
+
+		// D. Stats/Report Action
 		holder.btnQuickReport.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
@@ -105,7 +117,7 @@ public class ChildAdapter extends RecyclerView.Adapter<ChildAdapter.ChildAdapter
 			}
 		});
 
-		// Card Click (Default)
+		// E. General Card Click
 		holder.itemView.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
@@ -121,22 +133,32 @@ public class ChildAdapter extends RecyclerView.Adapter<ChildAdapter.ChildAdapter
 		return childs.size();
 	}
 
+	// Paste this at the bottom of ChildAdapter.java, replacing the old ViewHolder class
+	// PASTE THIS AT THE VERY BOTTOM OF ChildAdapter.java
 	public class ChildAdapterViewHolder extends RecyclerView.ViewHolder {
-		CircleImageView imgChild;
+		de.hdodenhof.circleimageview.CircleImageView imgChild; // Ensure full path if needed
 		TextView txtChildName, txtUsageSummary, txtTopApp, txtStatus;
-		Button btnQuickLock, btnQuickLocation, btnQuickReport;
+		ImageView imgStatusDot;
+		Button btnQuickLock, btnQuickLocation, btnWebShield, btnQuickReport; // <--- MUST HAVE THIS
 
 		public ChildAdapterViewHolder(@NonNull View itemView) {
 			super(itemView);
+			// 1. Find Text Views & Images
 			imgChild = itemView.findViewById(R.id.imgChild);
 			txtChildName = itemView.findViewById(R.id.txtChildName);
 			txtStatus = itemView.findViewById(R.id.txtStatus);
+			imgStatusDot = itemView.findViewById(R.id.imgStatusDot); // This might cause error if XML isn't updated
 			txtUsageSummary = itemView.findViewById(R.id.txtUsageSummary);
 			txtTopApp = itemView.findViewById(R.id.txtTopApp);
 
-			// Map the New Buttons
+			// 2. Find Action Buttons
 			btnQuickLock = itemView.findViewById(R.id.btnQuickLock);
 			btnQuickLocation = itemView.findViewById(R.id.btnQuickLocation);
+
+			// --- CRITICAL FIX: THIS LINE PREVENTS THE CRASH ---
+			btnWebShield = itemView.findViewById(R.id.btnWebShield);
+			// --------------------------------------------------
+
 			btnQuickReport = itemView.findViewById(R.id.btnQuickReport);
 		}
 	}

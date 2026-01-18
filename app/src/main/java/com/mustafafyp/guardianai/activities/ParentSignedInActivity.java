@@ -11,6 +11,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.mustafafyp.guardianai.models.Child;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.FragmentManager;
@@ -113,32 +114,38 @@ public class ParentSignedInActivity extends AppCompatActivity implements OnChild
 		getParentData(parentEmail);
 		
 	}
-	
+
 	public void getChilds(String parentEmail) {
 		Query query = databaseReference.child("childs").orderByChild("parentEmail").equalTo(parentEmail);
 		query.addValueEventListener(new ValueEventListener() {
 			@Override
 			public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
 				if (dataSnapshot.exists()) {
-					//long childCount = dataSnapshot.getChildrenCount();
-					//txtChildCount.setText(String.valueOf(childCount));
-					
 					childs = new ArrayList<>();
-					for (DataSnapshot child : dataSnapshot.getChildren()) {
-						childs.add(child.getValue(Child.class));
+
+					// Loop through all children found in database
+					for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+						Child childObj = snapshot.getValue(Child.class);
+
+						if (childObj != null) {
+							// --- CRITICAL FIX ---
+							// We grab the unique key (e.g., "Kj87sdf...") and save it as the ID
+							childObj.setChildID(snapshot.getKey());
+
+							childs.add(childObj);
+						}
 					}
-					
+
 					txtNoKids.setVisibility(View.GONE);
 					recyclerViewChilds.setVisibility(View.VISIBLE);
 					initializeAdapter();
-					
-					
+
 				} else {
 					txtNoKids.setVisibility(View.VISIBLE);
 					recyclerViewChilds.setVisibility(View.GONE);
 				}
 			}
-			
+
 			@Override
 			public void onCancelled(@NonNull DatabaseError databaseError) {
 				txtNoKids.setVisibility(View.VISIBLE);
@@ -146,7 +153,6 @@ public class ParentSignedInActivity extends AppCompatActivity implements OnChild
 			}
 		});
 	}
-	
 	public void initializeAdapter() {
 		childAdapter = new ChildAdapter(this, childs);
 		childAdapter.setOnChildClickListener(this);
@@ -197,7 +203,7 @@ public class ParentSignedInActivity extends AppCompatActivity implements OnChild
 		}
 	}
 	
-	@Override
+
 	public void onWebFilterClick(boolean checked, User child) {
 		String childEmail = child.getEmail();
 		if (checked) {
@@ -237,11 +243,13 @@ public class ParentSignedInActivity extends AppCompatActivity implements OnChild
 		}
 		
 	}
-	
+
 	@Override
-	public void onBtnLockClick(boolean checked, User child) {
+	public void onBtnLockClick(boolean checked, Child child) {
+		// Module 2: Remote Lock Logic
 		childEmail = child.getEmail();
 		if (checked) {
+			// Show Lock Dialog
 			FragmentManager fragmentManager = getSupportFragmentManager();
 			PhoneLockDialogFragment phoneLockDialogFragment = new PhoneLockDialogFragment();
 			Bundle bundle = new Bundle();
@@ -250,12 +258,12 @@ public class ParentSignedInActivity extends AppCompatActivity implements OnChild
 			phoneLockDialogFragment.setCancelable(false);
 			phoneLockDialogFragment.show(fragmentManager, "PhoneLockDialogFragment");
 		} else {
+			// Unlock Immediately
 			Toast.makeText(this, getString(R.string.phone_unlocked), Toast.LENGTH_SHORT).show();
 			ScreenLock screenLock = new ScreenLock(0, 0, false);
 			updatePhoneLock(screenLock);
 		}
 	}
-	
 	@Override
 	public void onLockPhoneSet(int hours, int minutes) {
 		if (hours == 0 && minutes == 0) {
@@ -303,5 +311,15 @@ public class ParentSignedInActivity extends AppCompatActivity implements OnChild
 	public void onBackPressed() {
 		moveTaskToBack(true);
 		//finishAffinity();
+	}
+
+	// Add this method anywhere inside ParentSignedInActivity class
+	@Override
+	public void onWebFilterClick(Child child) {
+		// Module 5: Web Shield Logic
+		Intent intent = new Intent(this, WebFilterActivity.class);
+		intent.putExtra("CHILD_UID", child.getChildID()); // Ensure Child model has getChildID() or getUid()
+		intent.putExtra("CHILD_EMAIL", child.getEmail());
+		startActivity(intent);
 	}
 }

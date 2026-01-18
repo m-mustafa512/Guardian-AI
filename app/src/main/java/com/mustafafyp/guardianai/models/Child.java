@@ -8,6 +8,7 @@ public class Child extends User {
 	private ArrayList<App> apps = new ArrayList<>();
 	private ArrayList<Contact> Contacts = new ArrayList<>();
 	private Location location;
+	private String childID;
 	private HashMap<String, Message> messages = new HashMap<>();
 	private HashMap<String, Call> calls = new HashMap<>();
 	private ScreenLock screenLock;
@@ -105,4 +106,12 @@ public class Child extends User {
 
 	public String getTopApp() { return topApp; }
 	public void setTopApp(String topApp) { this.topApp = topApp; }
+
+	public String getChildID() {
+		return childID;
+	}
+
+	public void setChildID(String childID) {
+		this.childID = childID;
+	}
 }
