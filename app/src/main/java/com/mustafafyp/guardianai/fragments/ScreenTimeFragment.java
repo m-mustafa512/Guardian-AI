@@ -72,10 +72,7 @@ public class ScreenTimeFragment extends Fragment {
 
         return view;
     }
-
-    // Screen Time feature restored
-
-
+    
     // Safety check for async callbacks
     private boolean isSafe() {
         return isAdded() && getActivity() != null && !getActivity().isFinishing();
@@ -160,8 +157,7 @@ public class ScreenTimeFragment extends Fragment {
     }
 
     private void fetchApps(String uid) {
-        // Updated Path: appStats/{uid}/apps
-        databaseReference.child("appStats").child(uid).child("apps")
+        databaseReference.child("childs").child(uid).child("apps")
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {

@@ -82,48 +82,9 @@ public class AppsFragment extends Fragment implements OnAppClickListener {
 	public void getData() {
 		bundle = getActivity().getIntent().getExtras();
 		if (bundle != null) {
+			apps = bundle.getParcelableArrayList(ParentSignedInActivity.APPS_EXTRA);
 			childEmail = bundle.getString(CHILD_EMAIL_EXTRA);
-			
-			// Apps are no longer in the intent because ParentSignedInActivity doesn't fetch them (too heavy)
-			// We must fetch them here using the email to find the UID first
-			fetchAppsFromDatabase();
 		}
-	}
-	
-	private void fetchAppsFromDatabase() {
-	    if (childEmail == null) return;
-	    
-	    Query query = databaseReference.child("childs").orderByChild("email").equalTo(childEmail);
-	    query.addListenerForSingleValueEvent(new ValueEventListener() {
-	        @Override
-	        public void onDataChange(@NonNull DataSnapshot snapshot) {
-	             if (snapshot.exists()) {
-	                 DataSnapshot childNode = snapshot.getChildren().iterator().next();
-	                 String uid = childNode.getKey();
-	                 
-	                 // Now fetch apps from appStats
-	                 databaseReference.child("appStats").child(uid).child("apps").addListenerForSingleValueEvent(new ValueEventListener() {
-	                     @Override
-	                     public void onDataChange(@NonNull DataSnapshot appSnapshot) {
-	                         if (appSnapshot.exists()) {
-	                             apps = new ArrayList<>();
-	                             for (DataSnapshot ds : appSnapshot.getChildren()) {
-	                                 App app = ds.getValue(App.class);
-	                                 apps.add(app);
-	                             }
-	                             initializeAdapter(AppsFragment.this);
-	                         }
-	                     }
-	                     
-	                     @Override
-	                     public void onCancelled(@NonNull DatabaseError error) {}
-	                 });
-	             }
-	        }
-	        
-	        @Override
-	        public void onCancelled(@NonNull DatabaseError error) {}
-	    });
 	}
 	
 	public void initializeAdapter(OnAppClickListener onAppClickListener) {
@@ -243,7 +204,7 @@ public class AppsFragment extends Fragment implements OnAppClickListener {
 				DataSnapshot nodeShot = dataSnapshot.getChildren().iterator().next();
 				final String key = nodeShot.getKey();
 				Log.i(TAG, "onDataChange: key: " + key);
-				Query query = databaseReference.child("appStats").child(key).child("apps").orderByChild("packageName").equalTo(packageName);  //changed from appName
+				Query query = databaseReference.child("childs").child(key).child("apps").orderByChild("packageName").equalTo(packageName);  //changed from appName
 				query.addListenerForSingleValueEvent(new ValueEventListener() {
 					@Override
 					public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
@@ -251,7 +212,7 @@ public class AppsFragment extends Fragment implements OnAppClickListener {
 							DataSnapshot snapshot = dataSnapshot.getChildren().iterator().next();
 							HashMap<String, Object> update = new HashMap<>();
 							update.put("blocked", blocked);
-							databaseReference.child("appStats").child(key).child("apps").child(snapshot.getKey()).updateChildren(update);
+							databaseReference.child("childs").child(key).child("apps").child(snapshot.getKey()).updateChildren(update);
 							
 						}
 					}

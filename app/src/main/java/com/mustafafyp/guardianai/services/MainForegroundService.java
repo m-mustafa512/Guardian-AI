@@ -80,8 +80,6 @@ public class MainForegroundService extends Service {
 	private String childEmail;
 	private FirebaseDatabase firebaseDatabase = FirebaseDatabase.getInstance();
 	private DatabaseReference databaseReference = firebaseDatabase.getReference("users");
-    private long lastAppsUploadTime = 0;
-    private static final long APPS_UPLOAD_INTERVAL = 5 * 60 * 1000; // 5 minutes
 	
 	
 	@Override
@@ -110,8 +108,7 @@ public class MainForegroundService extends Service {
 		childEmail = user.getEmail();
 		uid = user.getUid();
 		updateBatteryAndDeviceInfo(uid);
-		// Screen Time feature restored
-
+		
 		Intent notificationIntent = new Intent(this, ChildSignedInActivity.class);
 		PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
 		
@@ -129,9 +126,20 @@ public class MainForegroundService extends Service {
         /*FirebaseDatabase firebaseDatabase = FirebaseDatabase.getInstance();
         databaseReference = firebaseDatabase.getReference("users");*/
 		
-		// REMOVED appsQuery listener to prevent loop and overhead.
-		// Apps are now fetched mainly when needed or periodically if required,
-		// but since this service is the WRITER of apps, it has the truth in 'apps' variable.
+		Query appsQuery = databaseReference.child("childs").child(uid).child("apps");
+		appsQuery.addValueEventListener(new ValueEventListener() {
+			@Override
+			public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+				if (dataSnapshot.exists()) {
+					getApps();
+				}
+			}
+			
+			@Override
+			public void onCancelled(@NonNull DatabaseError databaseError) {
+			
+			}
+		});
 		
 		Query locationQuery = databaseReference.child("childs").child(uid).child("location");
 		locationQuery.addValueEventListener(new ValueEventListener() {
@@ -273,22 +281,30 @@ public class MainForegroundService extends Service {
 	}
 	
 	public void getApps() {
-		// Fetch apps from the NEW 'appStats' node
-		databaseReference.child("appStats").child(uid).child("apps").addListenerForSingleValueEvent(new ValueEventListener() {
+		Query query = databaseReference.child("childs").orderByChild("email").equalTo(childEmail);
+		query.addListenerForSingleValueEvent(new ValueEventListener() {
 			@Override
-			public void onDataChange(@NonNull DataSnapshot snapshot) {
-				if (snapshot.exists()) {
-					ArrayList<App> fetchedApps = new ArrayList<>();
-					for (DataSnapshot appSnapshot : snapshot.getChildren()) {
-						App app = appSnapshot.getValue(App.class);
-						fetchedApps.add(app);
-					}
-					apps = fetchedApps;
+			public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+				if (dataSnapshot.exists()) {
+					//Log.i(TAG, "onDataChange: dataSnapshot value: "+dataSnapshot.getValue());
+					//Log.i(TAG, "onDataChange: dataSnapshot as a string: "+dataSnapshot.toString());
+					//Log.i(TAG, "onDataChange: dataSnapshot children: " + dataSnapshot.getChildren());
+					//Log.i(TAG, "onDataChange: dataSnapshot key: " + dataSnapshot.getKey());
+					
+					DataSnapshot nodeShot = dataSnapshot.getChildren().iterator().next();
+					Child child = nodeShot.getValue(Child.class);
+					apps = child.getApps();
+					
+					Log.i(TAG, "onDataChange: child name: " + child.getName());
+					//updateAppStats(apps);
+					
 				}
 			}
-
+			
 			@Override
-			public void onCancelled(@NonNull DatabaseError error) {}
+			public void onCancelled(@NonNull DatabaseError databaseError) {
+			
+			}
 		});
 	}
 	
@@ -532,13 +548,8 @@ public class MainForegroundService extends Service {
 	}
 	
 	private void uploadApps(ArrayList<App> appsList) {
-		// New path: users/appStats/{uid}/apps
-		// Only upload if throttled time passed
-		if (System.currentTimeMillis() - lastAppsUploadTime > APPS_UPLOAD_INTERVAL) {
-			databaseReference.child("appStats").child(uid).child("apps").setValue(appsList);
-			lastAppsUploadTime = System.currentTimeMillis();
-			Log.i(TAG, "uploadApps: Uploaded full app list to appStats.");
-		}
+		databaseReference.child("childs").child(uid).child("apps").setValue(appsList);
+		Log.i(TAG, "uploadApps: done");
 	}
 
 	private void aggregateUsageStats() {
@@ -587,22 +598,6 @@ public class MainForegroundService extends Service {
 					uploadApps(apps);
 					Log.i(TAG, "aggregateUsageStats: Usage stats updated");
 				}
-
-                // Find Top App
-                long maxUsage = 0;
-                String topAppPackage = "";
-                for (App app : apps) {
-                    if (app.getUsageDuration() > maxUsage) {
-                        maxUsage = app.getUsageDuration();
-                        topAppPackage = app.getPackageName();
-                    }
-                }
-                
-                // Sync Top App (lightweight, can do every minute)
-                HashMap<String, Object> topAppUpdate = new HashMap<>();
-                topAppUpdate.put("topAppPackageName", topAppPackage);
-                topAppUpdate.put("topAppUsageDuration", maxUsage);
-                databaseReference.child("childs").child(uid).updateChildren(topAppUpdate);
 				
 				// Update battery and device model periodically (every 1 min)
 				if (uid != null) {
