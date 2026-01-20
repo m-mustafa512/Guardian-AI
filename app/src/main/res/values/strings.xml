@@ -180,4 +180,13 @@
     <string name="please_turn_on_the_gps">Please turn on the gps on</string>
     <string name="already_have_an_account">Already have an account?</string>
 
+    <string-array name="safety_tips">
+        <item>Never share your passwords with anyone online.</item>
+        <item>If someone makes you feel uncomfortable, tell your parents immediately.</item>
+        <item>Always ask for permission before downloading a new app.</item>
+        <item>Don\'t share your home address or phone number on public forums.</item>
+        <item>Take a 5-minute break every hour to rest your eyes!</item>
+        <item>Be kind to others online, just like you are in person.</item>
+    </string-array>
+
 </resources>

@@ -182,14 +182,30 @@ public class LoginActivity extends AppCompatActivity implements OnPasswordResetL
 					stopLoadingFragment(loadingDialogFragment);
 					if (task.isSuccessful()) {
 						FirebaseUser user = auth.getCurrentUser();
+
+						if (user == null) {
+							Toast.makeText(LoginActivity.this,
+									"Login failed. User is null.",
+									Toast.LENGTH_SHORT).show();
+							return;
+						}
+
 						String email = user.getEmail();
 						uid = user.getUid();
-						Log.i(TAG, "onComplete: user: " + user.toString());
-						Log.i(TAG, "onComplete: email: " + email);
-						Log.i(TAG, "onComplete: uid: " + uid);
-						//String email = txtLogInEmail.getText().toString();
-						if (Validators.isVerified(user)) checkMode(email);
-						else startAccountVerificationActivity();
+
+						if (email == null || email.trim().isEmpty()) {
+							Toast.makeText(LoginActivity.this,
+									"Email not available for this account.",
+									Toast.LENGTH_LONG).show();
+							auth.signOut();
+							return;
+						}
+
+						if (Validators.isVerified(user)) {
+							checkMode(email);
+						} else {
+							startAccountVerificationActivity();
+						}
 					} else {
 						String errorCode = null;
 						try {

@@ -3,6 +3,9 @@ package com.mustafafyp.guardianai.models;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import com.google.firebase.database.IgnoreExtraProperties;
+
+@IgnoreExtraProperties
 public class Child extends User {
 	private String parentEmail;
 	private ArrayList<App> apps = new ArrayList<>();
@@ -13,6 +16,11 @@ public class Child extends User {
 	private ScreenLock screenLock;
 	private String profileImage;
 	private boolean appDeleted;
+	private int batteryLevel;
+	private String deviceModel;
+	private long totalScreenTime;
+	private HashMap<String, Alert> alerts = new HashMap<>();
+	private HashMap<String, Long> dailyUsage = new HashMap<>();
 	
 	public Child() {
 	}
@@ -94,5 +102,49 @@ public class Child extends User {
 	
 	public void setAppDeleted(boolean appDeleted) {
 		this.appDeleted = appDeleted;
+	}
+
+	public int getBatteryLevel() {
+		return batteryLevel;
+	}
+
+	public void setBatteryLevel(int batteryLevel) {
+		this.batteryLevel = batteryLevel;
+	}
+
+	public String getDeviceModel() {
+		return deviceModel;
+	}
+
+	public void setDeviceModel(String deviceModel) {
+		this.deviceModel = deviceModel;
+	}
+
+	public long getTotalScreenTime() {
+		return totalScreenTime;
+	}
+
+	public void setTotalScreenTime(long totalScreenTime) {
+		this.totalScreenTime = totalScreenTime;
+	}
+
+	public HashMap<String, Alert> getAlerts() {
+		return alerts;
+	}
+
+	public void setAlerts(Object alerts) {
+		if (alerts instanceof HashMap) {
+			this.alerts = (HashMap<String, Alert>) alerts;
+		}
+	}
+
+	public HashMap<String, Long> getDailyUsage() {
+		return dailyUsage;
+	}
+
+	public void setDailyUsage(Object dailyUsage) {
+		if (dailyUsage instanceof HashMap) {
+			this.dailyUsage = (HashMap<String, Long>) dailyUsage;
+		}
 	}
 }

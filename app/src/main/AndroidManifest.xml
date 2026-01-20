@@ -62,6 +62,14 @@
             android:name="com.mustafafyp.guardianai.activities.SignUpActivity"
             android:parentActivityName="com.mustafafyp.guardianai.activities.LoginActivity" />
 
+        <activity
+            android:name="com.mustafafyp.guardianai.activities.UsageReportActivity"
+            android:parentActivityName="com.mustafafyp.guardianai.activities.ChildDetailsActivity" />
+
+        <activity
+            android:name="com.mustafafyp.guardianai.activities.AlertsActivity"
+            android:parentActivityName="com.mustafafyp.guardianai.activities.ParentSignedInActivity" />
+
         <!-- Launcher activity -->
         <activity
             android:name="com.mustafafyp.guardianai.activities.LoginActivity"

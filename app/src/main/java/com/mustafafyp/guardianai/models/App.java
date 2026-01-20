@@ -21,6 +21,8 @@ public class App implements Parcelable {
 	//private Drawable appIcon;
 	private boolean blocked;
 	private ScreenLock screenLock;
+	private long usageDuration;
+	private long lastTimeUsed;
 	
 	public App() {
 	}
@@ -43,6 +45,8 @@ public class App implements Parcelable {
 		appName = in.readString();
 		packageName = in.readString();
 		blocked = in.readByte() != 0;
+		usageDuration = in.readLong();
+		lastTimeUsed = in.readLong();
 	}
 	
 	public String getAppName() {
@@ -88,5 +92,23 @@ public class App implements Parcelable {
 		dest.writeString(appName);
 		dest.writeString(packageName);
 		dest.writeByte((byte) (blocked ? 1 : 0));
+		dest.writeLong(usageDuration);
+		dest.writeLong(lastTimeUsed);
+	}
+
+	public long getUsageDuration() {
+		return usageDuration;
+	}
+
+	public void setUsageDuration(long usageDuration) {
+		this.usageDuration = usageDuration;
+	}
+
+	public long getLastTimeUsed() {
+		return lastTimeUsed;
+	}
+
+	public void setLastTimeUsed(long lastTimeUsed) {
+		this.lastTimeUsed = lastTimeUsed;
 	}
 }

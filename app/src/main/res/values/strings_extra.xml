@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name_new">Guardian AI</string>
+    <string name="welcome_back">Welcome Back!</string>
+    <string name="view_usage_report">Usage Report</string>
+    <string name="app_usage_report">App Usage Report</string>
+    <!-- ... other strings ... -->
+</resources>

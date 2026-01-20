@@ -28,6 +28,16 @@
         android:textSize="@dimen/text_size_18sp" />
 
     <ImageButton
+        android:id="@+id/btnAlerts"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical|end"
+        android:layout_marginEnd="48dp"
+        android:background="@android:color/transparent"
+        android:src="@drawable/ic_notifications"
+        android:tint="@android:color/black"/>
+
+    <ImageButton
         android:id="@+id/btnSettings"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

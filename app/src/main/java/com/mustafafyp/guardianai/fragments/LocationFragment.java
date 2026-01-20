@@ -98,6 +98,13 @@ public class LocationFragment extends Fragment implements OnGeoFenceSettingListe
 				startGeoFencingDialogFragment();
 			}
 		});
+
+        view.findViewById(R.id.fabHistory).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                fetchLocationHistory();
+            }
+        });
 		
 		FirebaseDatabase firebaseDatabase = FirebaseDatabase.getInstance();
 		databaseReference = firebaseDatabase.getReference("users");
@@ -183,6 +190,8 @@ public class LocationFragment extends Fragment implements OnGeoFenceSettingListe
 		query.addValueEventListener(new ValueEventListener() {
 			@Override
 			public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+				if (!isAdded() || getContext() == null) return;
+				
 				if (dataSnapshot.exists()) {
 					DataSnapshot nodeShot = dataSnapshot.getChildren().iterator().next();
 					Child child = nodeShot.getValue(Child.class);
@@ -215,6 +224,7 @@ public class LocationFragment extends Fragment implements OnGeoFenceSettingListe
 	}
 	
 	private void startInformationDialogFragment() {
+		if (!isAdded() || getFragmentManager() == null) return;
 		InformationDialogFragment informationDialogFragment = new InformationDialogFragment();
 		Bundle bundle = new Bundle();
 		bundle.putString(Constant.INFORMATION_MESSAGE, getString(R.string.please_turn_on_the_gps) + " " + childName + getString(R.string.s_device));
@@ -321,6 +331,8 @@ public class LocationFragment extends Fragment implements OnGeoFenceSettingListe
 		query.addListenerForSingleValueEvent(new ValueEventListener() {
 			@Override
 			public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+				if (!isAdded() || getContext() == null) return;
+				
 				if (dataSnapshot.exists()) {
 					DataSnapshot nodeShot = dataSnapshot.getChildren().iterator().next();
 					Child child = nodeShot.getValue(Child.class);
@@ -328,7 +340,7 @@ public class LocationFragment extends Fragment implements OnGeoFenceSettingListe
 					String key = nodeShot.getKey();
 					
 					if (geoFenceCenter.equals("You")) {
-						if (userLocation == null || !Validators.isLocationOn(context)) {
+						if (userLocation == null || !Validators.isLocationOn(getContext())) {
 							startPermissionExplanationDialogFragment();
 						} else {
 							double fenceCenterLatitude = userLocation.getLatitude();
@@ -338,7 +350,7 @@ public class LocationFragment extends Fragment implements OnGeoFenceSettingListe
 							Location location = new Location(childLatitude, childLongitude, geoFenceDiameter, fenceCenterLatitude, fenceCenterLongitude, false, true);
 							databaseReference.child("childs").child(key).child("location").setValue(location);
 							startFencingService();
-							Toast.makeText(context, getString(R.string.center) + geoFenceCenter + " " + getString(R.string.diameter) + geoFenceDiameter, Toast.LENGTH_SHORT).show();
+							Toast.makeText(getContext(), getString(R.string.center) + geoFenceCenter + " " + getString(R.string.diameter) + geoFenceDiameter, Toast.LENGTH_SHORT).show();
 						}
 					} else {
 						double childLatitude = childLocation.getLatitude();
@@ -346,7 +358,7 @@ public class LocationFragment extends Fragment implements OnGeoFenceSettingListe
 						Location location = new Location(childLatitude, childLongitude, geoFenceDiameter, childLatitude, childLongitude, false, true);
 						databaseReference.child("childs").child(key).child("location").setValue(location);
 						startFencingService();
-						Toast.makeText(context, getString(R.string.center) + geoFenceCenter + " " + getString(R.string.diameter) + geoFenceDiameter, Toast.LENGTH_SHORT).show();
+						Toast.makeText(getContext(), getString(R.string.center) + geoFenceCenter + " " + getString(R.string.diameter) + geoFenceDiameter, Toast.LENGTH_SHORT).show();
 					}
 					
 				}
@@ -379,6 +391,68 @@ public class LocationFragment extends Fragment implements OnGeoFenceSettingListe
 		permissionExplanationDialogFragment.show(getFragmentManager(), Constant.PERMISSION_EXPLANATION_FRAGMENT_TAG);
 	}
 	
+	private void fetchLocationHistory() {
+        if (childEmail == null) return;
+        Toast.makeText(context, "Fetching history...", Toast.LENGTH_SHORT).show();
+        
+        Query query = databaseReference.child("childs").orderByChild("email").equalTo(childEmail);
+        query.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (!isAdded() || getContext() == null) return;
+                
+                if (dataSnapshot.exists()) {
+                    DataSnapshot nodeShot = dataSnapshot.getChildren().iterator().next();
+                    String uid = nodeShot.getKey();
+                    
+                    databaseReference.child("childs").child(uid).child("locationHistory")
+                            .limitToLast(50) // Limit to last 50 points
+                            .addListenerForSingleValueEvent(new ValueEventListener() {
+                                @Override
+                                public void onDataChange(@NonNull DataSnapshot historySnapshot) {
+                                    if (!isAdded() || getContext() == null) return;
+                                    
+                                    java.util.ArrayList<GeoPoint> points = new java.util.ArrayList<>();
+                                    for (DataSnapshot pointSnapshot : historySnapshot.getChildren()) {
+                                        com.mustafafyp.guardianai.models.LocationPoint point = pointSnapshot.getValue(com.mustafafyp.guardianai.models.LocationPoint.class);
+                                        if (point != null) {
+                                            points.add(new GeoPoint(point.getLatitude(), point.getLongitude()));
+                                        }
+                                    }
+                                    
+                                    if (!points.isEmpty()) {
+                                        drawHistoryPath(points);
+                                    } else {
+                                        Toast.makeText(getContext(), "No history found", Toast.LENGTH_SHORT).show();
+                                    }
+                                }
+
+                                @Override
+                                public void onCancelled(@NonNull DatabaseError databaseError) {
+                                    if (isAdded() && getContext() != null)
+                                        Toast.makeText(getContext(), "Failed to load history", Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+            }
+        });
+    }
+
+    private void drawHistoryPath(java.util.ArrayList<GeoPoint> points) {
+        org.osmdroid.views.overlay.Polyline line = new org.osmdroid.views.overlay.Polyline();
+        line.setPoints(points);
+        line.setColor(android.graphics.Color.BLUE);
+        line.setWidth(5f);
+        
+        mapView.getOverlayManager().add(line);
+        mapView.invalidate();
+        Toast.makeText(context, "Showing last 50 points", Toast.LENGTH_SHORT).show();
+    }
+
 	@Override
 	public void onOk(int requestCode) {
 		startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
@@ -386,7 +460,8 @@ public class LocationFragment extends Fragment implements OnGeoFenceSettingListe
 	
 	@Override
 	public void onCancel(int switchId) {
-		Toast.makeText(context, getString(R.string.canceled), Toast.LENGTH_SHORT).show();
+		if (getContext() != null)
+			Toast.makeText(getContext(), getString(R.string.canceled), Toast.LENGTH_SHORT).show();
 		
 	}
 	

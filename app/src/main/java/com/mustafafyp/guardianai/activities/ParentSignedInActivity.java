@@ -52,7 +52,6 @@ public class ParentSignedInActivity extends AppCompatActivity implements OnChild
 	private RecyclerView recyclerViewChilds;
 	private ChildAdapter childAdapter;
 	private ArrayList<Child> childs;
-	private CircleImageView imgParent;
 	private TextView txtParentName;
 	//private TextView txtChildCount;
 	private ProgressBar progressBar;
@@ -78,7 +77,6 @@ public class ParentSignedInActivity extends AppCompatActivity implements OnChild
 		firebaseDatabase = FirebaseDatabase.getInstance();
 		databaseReference = firebaseDatabase.getReference("users");
 		
-		imgParent = findViewById(R.id.imgParent);
 		txtParentName = findViewById(R.id.txtParentName);
 		//txtChildCount = findViewById(R.id.txtChildCount);
 		linearLayout = findViewById(R.id.linearLayoutParentSignedInActivity);
@@ -100,6 +98,19 @@ public class ParentSignedInActivity extends AppCompatActivity implements OnChild
 		});
 		txtTitle = findViewById(R.id.txtTitle);
 		txtTitle.setText(getString(R.string.home));
+
+		findViewById(R.id.btnAlerts).setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				if (childs != null && !childs.isEmpty()) {
+					Intent intent = new Intent(ParentSignedInActivity.this, AlertsActivity.class);
+					intent.putExtra(AlertsActivity.CHILD_EMAIL_EXTRA, childs.get(0).getEmail());
+					startActivity(intent);
+				} else {
+					Toast.makeText(ParentSignedInActivity.this, "No kids linked yet", Toast.LENGTH_SHORT).show();
+				}
+			}
+		});
 		
 		txtNoKids = findViewById(R.id.txtNoKids);
 		
@@ -121,17 +132,33 @@ public class ParentSignedInActivity extends AppCompatActivity implements OnChild
 			public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
 				if (dataSnapshot.exists()) {
 					//long childCount = dataSnapshot.getChildrenCount();
-					//txtChildCount.setText(String.valueOf(childCount));
-					
-					childs = new ArrayList<>();
-					for (DataSnapshot child : dataSnapshot.getChildren()) {
-						childs.add(child.getValue(Child.class));
-					}
-					
-					txtNoKids.setVisibility(View.GONE);
-					recyclerViewChilds.setVisibility(View.VISIBLE);
-					initializeAdapter();
-					
+						txtNoKids.setVisibility(View.GONE);
+						if (childs != null && childs.size() > 0) { // Added null check for childs
+							childs.clear();
+						} else if (childs == null) { // Initialize if null
+							childs = new ArrayList<>();
+						}
+						for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
+							Child child = postSnapshot.getValue(Child.class);
+							if (child != null && child.getParentEmail().equals(user.getEmail())) {
+								Log.i(TAG, "getChilds: Found " + child.getName() + " | Battery: " + child.getBatteryLevel() + " | Model: " + child.getDeviceModel());
+								childs.add(child);
+							}
+						}
+						
+						TextView txtChildCountMain = findViewById(R.id.txtChildCountMain);
+						if (txtChildCountMain != null) {
+							txtChildCountMain.setText(String.valueOf(childs.size()));
+						}
+						
+						if (childs.isEmpty()) {; // This line seems incomplete, keeping as provided
+							txtNoKids.setVisibility(View.VISIBLE);
+							recyclerViewChilds.setVisibility(View.GONE);
+						} else {
+							txtNoKids.setVisibility(View.GONE);
+							recyclerViewChilds.setVisibility(View.VISIBLE);
+							initializeAdapter();
+						}
 					
 				} else {
 					txtNoKids.setVisibility(View.VISIBLE);
@@ -163,8 +190,8 @@ public class ParentSignedInActivity extends AppCompatActivity implements OnChild
 					//String key = dataSnapshot.getKey();
 					Parent parent = nodeShot.getValue(Parent.class);
 					String parentName = parent.getName();
-					String profileImageUrl = parent.getProfileImage();
-					Picasso.get().load(profileImageUrl).placeholder(R.drawable.ic_profile_image).error(R.drawable.ic_profile_image).into(imgParent);
+					//String profileImageUrl = parent.getProfileImage();
+					//Picasso.get().load(profileImageUrl).placeholder(R.drawable.ic_profile_image).error(R.drawable.ic_profile_image).into(imgParent);
 					progressBar.setVisibility(View.GONE);
 					linearLayout.setVisibility(View.VISIBLE);
 					toolbar.setVisibility(View.VISIBLE);

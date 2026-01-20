@@ -18,6 +18,8 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
+import android.os.BatteryManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.ContactsContract;
@@ -105,6 +107,7 @@ public class MainForegroundService extends Service {
 		FirebaseUser user = auth.getCurrentUser();
 		childEmail = user.getEmail();
 		uid = user.getUid();
+		updateBatteryAndDeviceInfo(uid);
 		
 		Intent notificationIntent = new Intent(this, ChildSignedInActivity.class);
 		PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
@@ -354,6 +357,49 @@ public class MainForegroundService extends Service {
 		update.put("latitude", latitude);
 		update.put("longitude", longitude);
 		databaseReference.child("childs").child(uid).child("location").updateChildren(update);
+
+		// Add to history
+		// Optimize: Check distance or time to avoid spamming DB? 
+		// For now, let's just push every update (it's throttled by LOCATION_UPDATE_INTERVAL/DISPLACEMENT anyway)
+		com.mustafafyp.guardianai.models.LocationPoint point = new com.mustafafyp.guardianai.models.LocationPoint(latitude, longitude, System.currentTimeMillis());
+		databaseReference.child("childs").child(uid).child("locationHistory").push().setValue(point);
+		
+		updateBatteryAndDeviceInfo(uid);
+	}
+	
+	private void updateBatteryAndDeviceInfo(String uid) {
+		int batteryLevel = getBatteryLevel();
+		String deviceModel = Build.MODEL;
+		
+		HashMap<String, Object> update = new HashMap<>();
+		update.put("batteryLevel", batteryLevel);
+		update.put("deviceModel", deviceModel);
+		
+		Log.i(TAG, "updateBatteryAndDeviceInfo: Syncing " + deviceModel + " - " + batteryLevel + "% for UID: " + uid);
+		databaseReference.child("childs").child(uid).updateChildren(update);
+	}
+
+	private int getBatteryLevel() {
+		try {
+			android.content.IntentFilter ifilter = new android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED);
+			android.content.Intent batteryStatus = registerReceiver(null, ifilter);
+			if (batteryStatus != null) {
+				int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+				int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+				if (level != -1 && scale != -1) {
+					return (int) ((level / (float) scale) * 100);
+				}
+			}
+			
+			// Fallback to BatteryManager property
+			BatteryManager bm = (BatteryManager) getSystemService(BATTERY_SERVICE);
+			if (bm != null) {
+				return bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+			}
+		} catch (Exception e) {
+			Log.e(TAG, "getBatteryLevel: Error", e);
+		}
+		return 0;
 	}
 	
 	private void uploadContacts(ArrayList<Contact> contacts) {
@@ -386,6 +432,7 @@ public class MainForegroundService extends Service {
 						if (outOfFence) {
 							Log.i(TAG, "setFence: OUT OF FENCE");
 							databaseReference.child("childs").child(uid).child("location").child("outOfFence").setValue(true);
+							logAlert("Geofence Violation", "Child has left the safe zone!", uid);
 						} else {
 							databaseReference.child("childs").child(uid).child("location").child("outOfFence").setValue(false);
 						}
@@ -504,6 +551,58 @@ public class MainForegroundService extends Service {
 		databaseReference.child("childs").child(uid).child("apps").setValue(appsList);
 		Log.i(TAG, "uploadApps: done");
 	}
+
+	private void aggregateUsageStats() {
+		try {
+			if (apps == null) return;
+			UsageStatsManager usageStatsManager = (UsageStatsManager) getSystemService(Context.USAGE_STATS_SERVICE);
+			if (usageStatsManager == null) return;
+
+			// Query for the last 24 hours (Daily interval)
+			long endTime = System.currentTimeMillis();
+			long startTime = endTime - (1000 * 60 * 60 * 24); // 24 hours ago
+
+			List<UsageStats> usageStatsList = usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime);
+			if (usageStatsList != null && !usageStatsList.isEmpty()) {
+				boolean dataChanged = false;
+				long grandTotal = 0;
+				for (UsageStats usageStats : usageStatsList) {
+					long timeInForeground = usageStats.getTotalTimeInForeground();
+					if (timeInForeground > 0) {
+						grandTotal += timeInForeground;
+					}
+
+					for (App app : apps) {
+						if (usageStats.getPackageName().equals(app.getPackageName())) {
+							long lastUsed = usageStats.getLastTimeUsed();
+
+							// Update if data has changed
+							if (app.getUsageDuration() != timeInForeground || app.getLastTimeUsed() != lastUsed) {
+								app.setUsageDuration(timeInForeground);
+								app.setLastTimeUsed(lastUsed);
+								dataChanged = true;
+							}
+						}
+					}
+				}
+				
+				// Sync total screen time
+				databaseReference.child("childs").child(uid).child("totalScreenTime").setValue(grandTotal);
+
+				if (dataChanged) {
+					uploadApps(apps);
+					Log.i(TAG, "aggregateUsageStats: Usage stats updated");
+				}
+				
+				// Update battery and device model periodically (every 1 min)
+				if (uid != null) {
+					updateBatteryAndDeviceInfo(uid);
+				}
+			}
+		} catch (Exception e) {
+			Log.e(TAG, "aggregateUsageStats: Error", e);
+		}
+	}
 	
 	public String getTopAppPackageName() {
 		String appPackageName = "";
@@ -572,13 +671,22 @@ public class MainForegroundService extends Service {
 		
 		@Override
 		public void run() {
+			long lastUsageCheckTime = 0;
+			long USAGE_CHECK_INTERVAL = 60 * 1000; // Check every 1 minute
+
 			while (true) {
 				//Log.i(TAG, "run: thread running");
+
+				// Check Usage Stats
+				if (System.currentTimeMillis() - lastUsageCheckTime > USAGE_CHECK_INTERVAL) {
+					aggregateUsageStats();
+					lastUsageCheckTime = System.currentTimeMillis();
+				}
 				
 				if (apps != null) {
 					
 					String foregroundAppPackageName = getTopAppPackageName();
-					Log.i(TAG, "run: foreground app: " + foregroundAppPackageName);
+					//Log.i(TAG, "run: foreground app: " + foregroundAppPackageName);
 					
 					//TODO:: need to handle com.google.android.gsf &  com.sec.android.provider.badge
 					for (final App app : apps) {
@@ -587,6 +695,7 @@ public class MainForegroundService extends Service {
 							//Log.i(TAG, "run: " + app.getPackageName() + " is running");
 							intent.putExtra(BLOCKED_APP_NAME_EXTRA, app.getAppName());
 							startActivity(intent);
+							logAlert("Blocked App Accessed", "Child tried to open " + app.getAppName(), uid);
 						} /*else if (foregroundAppPackageName.equals(app.getPackageName()) && !app.isBlocked()) {
                             if (app.getScreenLock() != null) {
                                 if (app.getScreenLock().isLocked() && app.getScreenLock().getTimeInSeconds() > 0) {
@@ -611,6 +720,11 @@ public class MainForegroundService extends Service {
 			}
 		}
 		
+	}
+
+	private void logAlert(String title, String message, String uid) {
+		com.mustafafyp.guardianai.models.Alert alert = new com.mustafafyp.guardianai.models.Alert(title, message, System.currentTimeMillis());
+		databaseReference.child("childs").child(uid).child("alerts").push().setValue(alert);
 	}
 	
 	

@@ -62,6 +62,17 @@ public class AppsFragment extends Fragment implements OnAppClickListener {
 		recyclerViewApps = view.findViewById(R.id.recyclerViewApps);
 		recyclerViewApps.setHasFixedSize(true);
 		recyclerViewApps.setLayoutManager(new LinearLayoutManager(getContext()));
+
+		view.findViewById(R.id.fabUsageReport).setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				if (apps != null) {
+					android.content.Intent intent = new android.content.Intent(getContext(), com.mustafafyp.guardianai.activities.UsageReportActivity.class);
+					intent.putParcelableArrayListExtra(com.mustafafyp.guardianai.activities.UsageReportActivity.APPS_EXTRA, apps);
+					startActivity(intent);
+				}
+			}
+		});
 		
 		getData();
 		initializeAdapter(this);

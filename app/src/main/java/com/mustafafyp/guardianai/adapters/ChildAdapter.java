@@ -8,6 +8,9 @@ import android.widget.CompoundButton;
 import android.widget.LinearLayout;
 import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.ImageView;
+import androidx.appcompat.widget.SwitchCompat;
+import com.mustafafyp.guardianai.models.App;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -52,6 +55,30 @@ public class ChildAdapter extends RecyclerView.Adapter<ChildAdapter.ChildAdapter
 			childAdapterViewHolder.switchLockPhone.setChecked(child.getScreenLock().isLocked());
 		}
 		Picasso.get().load(child.getProfileImage()).placeholder(R.drawable.ic_profile_image).error(R.drawable.ic_profile_image).into(childAdapterViewHolder.imgChild);
+		
+		// Calculate Stats
+		long totalUsage = child.getTotalScreenTime();
+		App topApp = null;
+		if (child.getApps() != null) {
+			for (App app : child.getApps()) {
+				if (topApp == null || app.getUsageDuration() > topApp.getUsageDuration()) {
+					topApp = app;
+				}
+			}
+		}
+
+		// Format Screen Time
+		long hours = (totalUsage / (1000 * 60 * 60));
+		long minutes = (totalUsage / (1000 * 60)) % 60;
+		childAdapterViewHolder.txtTotalTime.setText(String.format("%dh %dm", hours, minutes));
+
+		// Set Top App
+		if (topApp != null && topApp.getUsageDuration() > 0) {
+			childAdapterViewHolder.txtTopApp.setText(topApp.getAppName());
+		} else {
+			childAdapterViewHolder.txtTopApp.setText("None");
+		}
+
 		if (child.isAppDeleted()) {
 			childAdapterViewHolder.layoutDeletedApp.setVisibility(View.VISIBLE);
 			childAdapterViewHolder.txtDeletedApp.setText(child.getName() + " " + context.getResources().getString(R.string.deleted_the_app));
@@ -60,6 +87,19 @@ public class ChildAdapter extends RecyclerView.Adapter<ChildAdapter.ChildAdapter
 			childAdapterViewHolder.switchLockPhone.setEnabled(false);
 			childAdapterViewHolder.switchLockPhone.setClickable(false);
 		}
+
+		// Battery & Device Info
+		childAdapterViewHolder.txtDeviceModel.setText(child.getDeviceModel() != null ? child.getDeviceModel() : "Unknown Device");
+		childAdapterViewHolder.txtBatteryLevel.setText(child.getBatteryLevel() + "%");
+		
+		// Color battery based on level
+		int batteryColor;
+		if (child.getBatteryLevel() > 50) batteryColor = android.graphics.Color.parseColor("#43A047"); // Green
+		else if (child.getBatteryLevel() > 20) batteryColor = android.graphics.Color.parseColor("#FBC02D"); // Amber
+		else batteryColor = android.graphics.Color.parseColor("#D32F2F"); // Red
+		
+		childAdapterViewHolder.txtBatteryLevel.setTextColor(batteryColor);
+		childAdapterViewHolder.imgBattery.setColorFilter(batteryColor);
 	}
 	
 	@Override
@@ -70,26 +110,20 @@ public class ChildAdapter extends RecyclerView.Adapter<ChildAdapter.ChildAdapter
 	public class ChildAdapterViewHolder extends RecyclerView.ViewHolder {
 		private CircleImageView imgChild;
 		private TextView txtChildName;
-		private Switch switchWebFilter;
-		private Switch switchLockPhone;
+		private SwitchCompat switchLockPhone;
 		private LinearLayout layoutDeletedApp;
 		private TextView txtDeletedApp;
+		private TextView txtTotalTime;
+		private TextView txtTopApp;
+		private ImageView imgTopApp;
+		private TextView txtDeviceModel;
+		private TextView txtBatteryLevel;
+		private ImageView imgBattery;
 		
 		public ChildAdapterViewHolder(@NonNull View itemView) {
 			super(itemView);
 			imgChild = itemView.findViewById(R.id.imgChild);
 			txtChildName = itemView.findViewById(R.id.txtChildName);
-			switchWebFilter = itemView.findViewById(R.id.switchWebFilter);
-			switchWebFilter.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-				@Override
-				public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-					if (buttonView.isPressed()) {
-						int position = getAdapterPosition();
-						onChildClickListener.onWebFilterClick(isChecked, childs.get(position));
-					}
-					
-				}
-			});
 			
 			itemView.setOnClickListener(new View.OnClickListener() {
 				@Override
@@ -117,7 +151,12 @@ public class ChildAdapter extends RecyclerView.Adapter<ChildAdapter.ChildAdapter
 			layoutDeletedApp = itemView.findViewById(R.id.layoutDeletedApp);
 			layoutDeletedApp.setVisibility(View.GONE);
 			txtDeletedApp = itemView.findViewById(R.id.txtDeletedApp);
-			
+			txtTotalTime = itemView.findViewById(R.id.txtTotalTime);
+			txtTopApp = itemView.findViewById(R.id.txtTopApp);
+			imgTopApp = itemView.findViewById(R.id.imgTopApp);
+			txtDeviceModel = itemView.findViewById(R.id.txtDeviceModel);
+			txtBatteryLevel = itemView.findViewById(R.id.txtBatteryLevel);
+			imgBattery = itemView.findViewById(R.id.imgBattery);
 		}
 	}
 	

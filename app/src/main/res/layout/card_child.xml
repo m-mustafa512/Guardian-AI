@@ -4,108 +4,236 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="@dimen/margin_8dp"
-    android:background="@color/white"
-    app:cardCornerRadius="@dimen/card_corner_radius"
-    android:layoutDirection="locale"
-    app:cardElevation="@dimen/card_elevation">
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginVertical="8dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="6dp"
+    app:cardBackgroundColor="@android:color/white"
+    android:layoutDirection="locale">
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical">
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
 
-        <LinearLayout
+        <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:layout_height="wrap_content">
 
             <de.hdodenhof.circleimageview.CircleImageView
                 android:id="@+id/imgChild"
-                android:layout_width="@dimen/circular_image_width_small"
-                android:layout_height="@dimen/circular_image_height_small"
-                android:layout_margin="@dimen/margin_4dp"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
                 android:src="@drawable/ic_face"
-                app:civ_border_color="@color/flatui_clouds"
-                app:civ_border_width="@dimen/circular_image_border_small" />
+                app:civ_border_color="#F5F5F5"
+                app:civ_border_width="2dp" />
 
-            <FrameLayout
-                android:layout_width="match_parent"
+            <LinearLayout
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_margin="@dimen/margin_4dp">
+                android:layout_centerVertical="true"
+                android:layout_marginStart="16dp"
+                android:layout_toEndOf="@id/imgChild"
+                android:orientation="vertical">
 
                 <TextView
                     android:id="@+id/txtChildName"
-                    style="@style/CardHeader"
                     android:layout_width="wrap_content"
-                    android:layout_gravity="start|center"
-                    android:text="@string/child_name" />
+                    android:layout_height="wrap_content"
+                    android:text="Child Name"
+                    android:textColor="#2c3e50"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
 
+                <TextView
+                    android:id="@+id/txtDeviceModel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Device Model"
+                    android:textColor="#95a5a6"
+                    android:textSize="12sp"
+                    android:textStyle="italic" />
 
-                <Switch
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:orientation="vertical"
+                android:gravity="end">
+
+                <androidx.appcompat.widget.SwitchCompat
                     android:id="@+id/switchLockPhone"
-                    style="@style/CardSwitch" />
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:thumbTint="@color/flatui_orange"
+                    app:trackTint="@color/flatui_silver" />
+                
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginTop="4dp">
+                    
+                    <ImageView
+                        android:id="@+id/imgBattery"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_android"
+                        app:tint="#43A047"/>
 
-            </FrameLayout>
-        </LinearLayout>
+                    <TextView
+                        android:id="@+id/txtBatteryLevel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="100%"
+                        android:textColor="#43A047"
+                        android:textSize="12sp"
+                        android:textStyle="bold"/>
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </RelativeLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="12dp"
+            android:background="#F5F5F5" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:paddingLeft="64dp">
+            android:baselineAligned="false">
 
-            <TextView
-                style="@style/CardHeader"
-                android:layout_width="wrap_content"
-                android:text="@string/web_filter"
-                android:visibility="gone" />
-
-            <Switch
-                android:id="@+id/switchWebFilter"
-                android:layout_width="match_parent"
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center|end"
-                android:layout_margin="@dimen/margin_4dp"
-                android:visibility="gone" />
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="SCREEN TIME"
+                    android:textColor="#7f8c8d"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:src="@drawable/ic_timer"
+                        app:tint="#EF6C00" />
+
+                    <TextView
+                        android:id="@+id/txtTotalTime"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="0h 0m"
+                        android:textColor="#EF6C00"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <View
+                android:layout_width="1dp"
+                android:layout_height="match_parent"
+                android:background="#F5F5F5" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="TOP APP"
+                    android:textColor="#7f8c8d"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:id="@+id/imgTopApp"
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:src="@drawable/ic_android"
+                        app:tint="#34495e" />
+
+                    <TextView
+                        android:id="@+id/txtTopApp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="None"
+                        android:textColor="#34495e"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:singleLine="true"
+                        android:ellipsize="end"
+                        android:maxWidth="100dp"/>
+                </LinearLayout>
+
+            </LinearLayout>
+
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/layoutDeletedApp"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="gone"
-            tools:visibility="visible">
+            android:orientation="horizontal"
+            android:layout_marginTop="12dp"
+            android:padding="8dp"
+            android:background="#FFF3E0"
+            android:gravity="center_vertical"
+            android:visibility="gone">
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_gravity="center"
-                android:layout_margin="@dimen/margin_4dp"
-                android:background="@color/flatui_asbestos" />
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_delete"
+                app:tint="@color/flatui_pumpkin" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:id="@+id/txtDeletedApp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:layout_margin="@dimen/margin_4dp"
-                    android:src="@drawable/ic_delete" />
-
-                <TextView
-                    android:id="@+id/txtDeletedApp"
-                    style="@style/CardBody"
-                    android:layout_width="wrap_content"
-                    android:text="@string/deleted_the_app" />
-            </LinearLayout>
+                android:layout_marginStart="8dp"
+                android:text="App deleted"
+                android:textColor="@color/flatui_pumpkin"
+                android:textSize="12sp"
+                android:textStyle="bold" />
         </LinearLayout>
-    </LinearLayout>
 
+    </LinearLayout>
 
 </androidx.cardview.widget.CardView>

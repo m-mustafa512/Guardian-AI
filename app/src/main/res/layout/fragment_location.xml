@@ -28,6 +28,16 @@
         android:visibility="visible">
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fabHistory"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end|bottom"
+            android:layout_marginBottom="80dp"
+            android:layout_marginEnd="@dimen/margin_16dp"
+            android:backgroundTint="@color/flatui_orange"
+            android:src="@drawable/ic_history" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fabGeoFence"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

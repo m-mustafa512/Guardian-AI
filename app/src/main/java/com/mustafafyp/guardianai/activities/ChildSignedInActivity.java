@@ -5,18 +5,22 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
-import android.widget.FrameLayout;
+import java.util.Random;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.appcompat.widget.Toolbar;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import android.widget.ImageView;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.mustafafyp.guardianai.R;
+import com.mustafafyp.guardianai.models.Child;
 import com.mustafafyp.guardianai.dialogfragments.InformationDialogFragment;
 import com.mustafafyp.guardianai.dialogfragments.PasswordValidationDialogFragment;
 import com.mustafafyp.guardianai.dialogfragments.PermissionExplanationDialogFragment;
@@ -36,7 +40,7 @@ public class ChildSignedInActivity extends AppCompatActivity implements OnPermis
 	private ImageButton btnBack;
 	private ImageButton btnSettings;
 	private TextView txtTitle;
-	private FrameLayout toolbar;
+	private androidx.appcompat.widget.Toolbar toolbar;
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -54,9 +58,10 @@ public class ChildSignedInActivity extends AppCompatActivity implements OnPermis
             /*PersistableBundle bundle = new PersistableBundle();
             bundle.putString(CHILD_EMAIL, email);*/
 			
-			toolbar = findViewById(R.id.toolbar);
-			btnBack = findViewById(R.id.btnBack);
-			btnBack.setImageDrawable(getResources().getDrawable(R.drawable.ic_home_));
+			toolbar = findViewById(R.id.action_bar);
+			//Button logic removed as we have new layout with menu button in toolbar
+			//btnBack = findViewById(R.id.btnBack);
+			//btnBack.setImageDrawable(getResources().getDrawable(R.drawable.ic_home_));
 			btnSettings = findViewById(R.id.btnSettings);
 			btnSettings.setOnClickListener(new View.OnClickListener() {
 				@Override
@@ -75,6 +80,101 @@ public class ChildSignedInActivity extends AppCompatActivity implements OnPermis
 			if (!Validators.isInternetAvailable(this))
 				startInformationDialogFragment(getResources().getString(R.string.you_re_offline_ncheck_your_connection_and_try_again));
 			
+			setupRealtimeListeners(email);
+			displayRandomSafetyTip();
+		}
+	}
+
+	private void setupRealtimeListeners(String email) {
+		com.google.firebase.database.DatabaseReference ref = com.google.firebase.database.FirebaseDatabase.getInstance().getReference("users/childs");
+		ref.orderByChild("email").equalTo(email).addValueEventListener(new com.google.firebase.database.ValueEventListener() {
+			@Override
+			public void onDataChange(@NonNull com.google.firebase.database.DataSnapshot snapshot) {
+				if (snapshot.exists()) {
+					com.google.firebase.database.DataSnapshot childNode = snapshot.getChildren().iterator().next();
+					Child child = childNode.getValue(Child.class);
+					if (child != null) {
+						updateDashboardUI(child);
+					}
+				}
+			}
+
+			@Override
+			public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) {}
+		});
+	}
+
+	private void updateDashboardUI(Child child) {
+		TextView txtStatus = findViewById(R.id.txtStatus); 
+		TextView txtStatusDesc = findViewById(R.id.txtStatusDesc);
+		ImageView imgStatus = findViewById(R.id.imgStatus);
+
+		if (txtStatus == null || child.getScreenLock() == null) return;
+
+		if (child.getScreenLock().isLocked()) {
+			txtStatus.setText("Device is Locked");
+			txtStatus.setTextColor(android.graphics.Color.RED);
+			if (imgStatus != null) imgStatus.setColorFilter(android.graphics.Color.RED);
+			txtStatusDesc.setText("Your parents have temporarily locked this device.");
+		} else if (child.getLocation() != null && child.getLocation().isOutOfFence()) {
+			txtStatus.setText("Outside Safe Zone");
+			txtStatus.setTextColor(android.graphics.Color.parseColor("#FBC02D")); // Amber
+			if (imgStatus != null) imgStatus.setColorFilter(android.graphics.Color.parseColor("#FBC02D"));
+			txtStatusDesc.setText("You have left the area designated as safe by your parents.");
+		} else {
+			txtStatus.setText("Device is Protected");
+			txtStatus.setTextColor(android.graphics.Color.parseColor("#43A047"));
+			if (imgStatus != null) imgStatus.setColorFilter(android.graphics.Color.parseColor("#43A047"));
+			txtStatusDesc.setText("Your parents are keeping you safe online.");
+		}
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+		updateScreenTime();
+	}
+
+	private void updateScreenTime() {
+		TextView txtScreenTime = findViewById(R.id.txtScreenTime);
+		if (txtScreenTime == null) return;
+
+		try {
+			android.app.usage.UsageStatsManager usageStatsManager = (android.app.usage.UsageStatsManager) getSystemService(android.content.Context.USAGE_STATS_SERVICE);
+			if (usageStatsManager == null) {
+				txtScreenTime.setText("N/A");
+				return;
+			}
+
+			long endTime = System.currentTimeMillis();
+			long startTime = endTime - (1000 * 60 * 60 * 24); // 24 hours
+			java.util.List<android.app.usage.UsageStats> stats = usageStatsManager.queryUsageStats(android.app.usage.UsageStatsManager.INTERVAL_DAILY, startTime, endTime);
+
+			long totalTime = 0;
+			if (stats != null) {
+				for (android.app.usage.UsageStats usageStats : stats) {
+					totalTime += usageStats.getTotalTimeInForeground();
+				}
+			}
+
+			long hours = java.util.concurrent.TimeUnit.MILLISECONDS.toHours(totalTime);
+			long minutes = java.util.concurrent.TimeUnit.MILLISECONDS.toMinutes(totalTime) % 60;
+			txtScreenTime.setText(String.format("%dh %dm", hours, minutes));
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			txtScreenTime.setText("Error");
+		}
+	}
+
+	private void displayRandomSafetyTip() {
+		TextView txtSafetyTip = findViewById(R.id.txtSafetyTip);
+		if (txtSafetyTip == null) return;
+
+		String[] tips = getResources().getStringArray(R.array.safety_tips);
+		if (tips.length > 0) {
+			int randomIndex = new Random().nextInt(tips.length);
+			txtSafetyTip.setText(tips[randomIndex]);
 		}
 	}
 	
