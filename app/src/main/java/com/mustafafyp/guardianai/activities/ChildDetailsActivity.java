@@ -16,6 +16,7 @@ import com.mustafafyp.guardianai.R;
 import com.mustafafyp.guardianai.fragments.ActivityLogFragment;
 import com.mustafafyp.guardianai.fragments.AppsFragment;
 import com.mustafafyp.guardianai.fragments.LocationFragment;
+import com.mustafafyp.guardianai.fragments.ScreenTimeFragment;
 import com.mustafafyp.guardianai.models.App;
 
 import java.util.ArrayList;
@@ -90,6 +91,9 @@ public class ChildDetailsActivity extends AppCompatActivity {
 
 				} else if (id == R.id.navActivityLog) {
 					selectedFragment = new ActivityLogFragment();
+
+				} else if (id == R.id.navScreenTime) {
+					selectedFragment = new ScreenTimeFragment();
 				}
 
 

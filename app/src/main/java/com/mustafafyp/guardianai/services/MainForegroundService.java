@@ -589,6 +589,11 @@ public class MainForegroundService extends Service {
 				// Sync total screen time
 				databaseReference.child("childs").child(uid).child("totalScreenTime").setValue(grandTotal);
 
+				// Sync Daily Usage History
+				java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault());
+				String currentDate = sdf.format(new Date());
+				databaseReference.child("childs").child(uid).child("dailyUsage").child(currentDate).setValue(grandTotal);
+
 				if (dataChanged) {
 					uploadApps(apps);
 					Log.i(TAG, "aggregateUsageStats: Usage stats updated");
