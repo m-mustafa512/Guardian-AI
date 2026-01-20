@@ -19,6 +19,10 @@ public class Child extends User {
 	private int batteryLevel;
 	private String deviceModel;
 	private long totalScreenTime;
+	private String topAppPackageName;
+	private long topAppUsageDuration;
+	@com.google.firebase.database.Exclude
+	private ArrayList<App> apps = new ArrayList<>();
 	private HashMap<String, Alert> alerts = new HashMap<>();
 	private HashMap<String, Long> dailyUsage = new HashMap<>();
 	
@@ -146,5 +150,21 @@ public class Child extends User {
 		if (dailyUsage instanceof HashMap) {
 			this.dailyUsage = (HashMap<String, Long>) dailyUsage;
 		}
+	}
+
+	public String getTopAppPackageName() {
+		return topAppPackageName;
+	}
+
+	public void setTopAppPackageName(String topAppPackageName) {
+		this.topAppPackageName = topAppPackageName;
+	}
+
+	public long getTopAppUsageDuration() {
+		return topAppUsageDuration;
+	}
+
+	public void setTopAppUsageDuration(long topAppUsageDuration) {
+		this.topAppUsageDuration = topAppUsageDuration;
 	}
 }

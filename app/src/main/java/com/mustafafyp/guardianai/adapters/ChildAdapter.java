@@ -58,23 +58,24 @@ public class ChildAdapter extends RecyclerView.Adapter<ChildAdapter.ChildAdapter
 		
 		// Calculate Stats
 		long totalUsage = child.getTotalScreenTime();
-		App topApp = null;
-		if (child.getApps() != null) {
-			for (App app : child.getApps()) {
-				if (topApp == null || app.getUsageDuration() > topApp.getUsageDuration()) {
-					topApp = app;
-				}
-			}
-		}
 
 		// Format Screen Time
 		long hours = (totalUsage / (1000 * 60 * 60));
 		long minutes = (totalUsage / (1000 * 60)) % 60;
 		childAdapterViewHolder.txtTotalTime.setText(String.format("%dh %dm", hours, minutes));
 
-		// Set Top App
-		if (topApp != null && topApp.getUsageDuration() > 0) {
-			childAdapterViewHolder.txtTopApp.setText(topApp.getAppName());
+		// Set Top App (From Sync)
+		String topPkg = child.getTopAppPackageName();
+		if (topPkg != null && !topPkg.isEmpty()) {
+		    // Show package name or try to format it (e.g. com.facebook.katana -> facebook)
+		    // Ideally we'd have the app label, but package name is better than nothing/crash
+		    // Simple formatting:
+		    String label = topPkg;
+		    if (topPkg.contains(".")) {
+		        String[] parts = topPkg.split("\\.");
+		        if (parts.length > 1) label = parts[parts.length - 1]; // "katana" or "android"
+		    }
+			childAdapterViewHolder.txtTopApp.setText(label);
 		} else {
 			childAdapterViewHolder.txtTopApp.setText("None");
 		}
