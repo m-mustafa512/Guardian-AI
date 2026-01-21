@@ -116,6 +116,9 @@ public class MainForegroundService extends Service {
 		// Upload contacts ONCE (same as old behavior)
 		uploadContacts(getContacts());
 
+		// Backfill historical screen time for past 7 days
+		backfillHistoricalUsage();
+
 		scheduler.scheduleAtFixedRate(
 				this::checkBlockedApps,
 				0,
@@ -261,28 +264,67 @@ public class MainForegroundService extends Service {
 		PackageManager pm = getPackageManager();
 		List<ApplicationInfo> installed = pm.getInstalledApplications(0);
 
+		// Build map of existing apps from Firebase (to preserve blocked status)
 		HashMap<String, App> firebaseMap = new HashMap<>();
 		for (App app : apps) {
 			firebaseMap.put(app.getPackageName(), app);
 		}
 
+		// Check if we've done a full sync with launchable system apps before
+		android.content.SharedPreferences prefs = getSharedPreferences("guardian_ai_prefs", MODE_PRIVATE);
+		boolean hasCompletedFullSync = prefs.getBoolean("apps_full_sync_v2", false);
+
+		// Force full re-sync if:
+		// 1. Firebase has no apps or very few apps (first install)
+		// 2. We haven't done a full sync with the new logic (includes launchable system apps)
+		boolean forceFullSync = apps.isEmpty() || apps.size() < 5 || !hasCompletedFullSync;
+
+		ArrayList<App> newAppsList = new ArrayList<>();
 		boolean changed = false;
 
 		for (ApplicationInfo info : installed) {
-			if ((info.flags & ApplicationInfo.FLAG_SYSTEM) != 0) continue;
+			// Check if it's a user-installed app OR a launchable system app
+			boolean isUserApp = (info.flags & ApplicationInfo.FLAG_SYSTEM) == 0;
+			Intent launchIntent = pm.getLaunchIntentForPackage(info.packageName);
+			boolean isLaunchable = launchIntent != null;
 
-			if (!firebaseMap.containsKey(info.packageName)) {
-				apps.add(new App(
-						info.loadLabel(pm).toString(),
-						info.packageName,
-						false
-				));
-				changed = true;
+			if (isUserApp || isLaunchable) {
+				if (forceFullSync) {
+					// Full sync: add all launchable apps, preserve blocked status if exists
+					App existingApp = firebaseMap.get(info.packageName);
+					if (existingApp != null) {
+						newAppsList.add(existingApp); // Preserve existing data (blocked, usage, etc)
+					} else {
+						newAppsList.add(new App(
+								info.loadLabel(pm).toString(),
+								info.packageName,
+								false
+						));
+					}
+					changed = true;
+				} else {
+					// Normal merge: only add NEW apps
+					if (!firebaseMap.containsKey(info.packageName)) {
+						apps.add(new App(
+								info.loadLabel(pm).toString(),
+								info.packageName,
+								false
+						));
+						changed = true;
+					}
+				}
 			}
 		}
 
-		if (changed) {
+		if (forceFullSync && !newAppsList.isEmpty()) {
+			apps = newAppsList;
 			uploadApps(apps);
+			// Mark that we've completed the full sync
+			prefs.edit().putBoolean("apps_full_sync_v2", true).apply();
+			Log.i(TAG, "mergeInstalledAppsWithFirebase: Full sync completed, " + apps.size() + " apps uploaded (including system apps)");
+		} else if (changed) {
+			uploadApps(apps);
+			Log.i(TAG, "mergeInstalledAppsWithFirebase: Merged new apps, total: " + apps.size());
 		}
 	}
 
@@ -452,6 +494,53 @@ public class MainForegroundService extends Service {
 
 		} catch (Exception e) {
 			Log.e(TAG, "aggregateUsageStats", e);
+		}
+	}
+
+	private void backfillHistoricalUsage() {
+		try {
+			UsageStatsManager usm =
+					(UsageStatsManager) getSystemService(USAGE_STATS_SERVICE);
+			if (usm == null) return;
+
+			java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat(
+					"yyyy-MM-dd", Locale.getDefault());
+
+			// Query for each of the past 7 days
+			for (int daysAgo = 6; daysAgo >= 0; daysAgo--) {
+				Calendar cal = Calendar.getInstance();
+				cal.add(Calendar.DAY_OF_YEAR, -daysAgo);
+				cal.set(Calendar.HOUR_OF_DAY, 0);
+				cal.set(Calendar.MINUTE, 0);
+				cal.set(Calendar.SECOND, 0);
+				cal.set(Calendar.MILLISECOND, 0);
+
+				long dayStart = cal.getTimeInMillis();
+				long dayEnd = dayStart + (24 * 60 * 60 * 1000) - 1;
+
+				// Don't query future times
+				if (dayStart > System.currentTimeMillis()) continue;
+				if (dayEnd > System.currentTimeMillis()) dayEnd = System.currentTimeMillis();
+
+				List<UsageStats> stats = usm.queryUsageStats(
+						UsageStatsManager.INTERVAL_DAILY, dayStart, dayEnd);
+
+				if (stats == null || stats.isEmpty()) continue;
+
+				long total = 0;
+				for (UsageStats s : stats) {
+					total += s.getTotalTimeInForeground();
+				}
+
+				String dateKey = sdf.format(cal.getTime());
+				databaseReference.child("childs").child(uid)
+						.child("dailyUsage").child(dateKey).setValue(total);
+			}
+
+			Log.i(TAG, "backfillHistoricalUsage: 7-day history synced");
+
+		} catch (Exception e) {
+			Log.e(TAG, "backfillHistoricalUsage", e);
 		}
 	}
 
