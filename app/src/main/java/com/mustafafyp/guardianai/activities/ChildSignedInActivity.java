@@ -301,7 +301,8 @@ public class ChildSignedInActivity extends AppCompatActivity implements OnPermis
 	
 	@Override
 	public void onBackPressed() {
-		super.onBackPressed();
+		// Don't go back to LoginActivity, just minimize the app
+		moveTaskToBack(true);
 	}
 	
 	@Override

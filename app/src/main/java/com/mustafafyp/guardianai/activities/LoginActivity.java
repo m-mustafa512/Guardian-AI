@@ -7,6 +7,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -14,6 +15,9 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.biometric.BiometricManager;
+import androidx.biometric.BiometricPrompt;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentManager;
 
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
@@ -47,6 +51,9 @@ import com.mustafafyp.guardianai.utils.Validators;
 
 public class LoginActivity extends AppCompatActivity implements OnPasswordResetListener {
 	private static final String TAG = "LoginActivityTAG";
+	private static final long AUTH_TIMEOUT_MS = 30 * 1000; // 30 seconds
+	private static long lastAuthTime = 0;
+	private String pendingEmail = null;
 	private EditText txtLogInEmail;
 	private EditText txtLogInPassword;
 	private Button btnLogin;
@@ -55,6 +62,8 @@ public class LoginActivity extends AppCompatActivity implements OnPasswordResetL
 	private TextView txtForgotPassword;
 	private CheckBox checkBoxRememberMe;
 	private ProgressBar progressBar;
+	private ImageButton btnTogglePassword;
+	private boolean isPasswordVisible = false;
 	private FirebaseAuth auth;
 	private FragmentManager fragmentManager;
 	private String uid;
@@ -87,6 +96,26 @@ public class LoginActivity extends AppCompatActivity implements OnPasswordResetL
 		
 		checkBoxRememberMe = findViewById(R.id.checkBoxRememberMe);
 		//progressBar.setVisibility(View.GONE);
+		
+		// Password visibility toggle
+		btnTogglePassword = findViewById(R.id.btnTogglePassword);
+		btnTogglePassword.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				if (isPasswordVisible) {
+					// Hide password
+					txtLogInPassword.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+					btnTogglePassword.setImageResource(R.drawable.ic_visibility_off);
+				} else {
+					// Show password
+					txtLogInPassword.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
+					btnTogglePassword.setImageResource(R.drawable.ic_visibility);
+				}
+				// Keep cursor at end
+				txtLogInPassword.setSelection(txtLogInPassword.getText().length());
+				isPasswordVisible = !isPasswordVisible;
+			}
+		});
 		
 		btnLogin = findViewById(R.id.btnLogin);
 		txtSignUp = findViewById(R.id.txtSignUp);
@@ -152,16 +181,91 @@ public class LoginActivity extends AppCompatActivity implements OnPasswordResetL
 	@Override
 	protected void onStart() {
 		super.onStart();
-		if (autoLoginPrefs) {
+		
+		// Always check if user is already logged in (Firebase persists sessions)
+		FirebaseUser user = auth.getCurrentUser();
+		if (user != null) {
 			if (Validators.isInternetAvailable(this)) {
-				FirebaseUser user = auth.getCurrentUser();
-				if (user != null) {
-					String email = user.getEmail();
-					checkMode(email);
+				String email = user.getEmail();
+				if (email != null && !email.isEmpty()) {
+					// Check if we need biometric auth (app was in background > 30 seconds)
+					long timeSinceLastAuth = System.currentTimeMillis() - lastAuthTime;
+					if (timeSinceLastAuth > AUTH_TIMEOUT_MS) {
+						// Require biometric authentication
+						pendingEmail = email;
+						showBiometricPrompt();
+					} else {
+						// Recently authenticated, proceed directly
+						checkMode(email);
+					}
+					return;
 				}
-			} else
+			} else {
 				startInformationDialogFragment(getResources().getString(R.string.you_re_offline_ncheck_your_connection_and_try_again));
+			}
 		}
+		
+		// If auto-login is enabled, pre-fill the fields
+		if (autoLoginPrefs) {
+			txtLogInEmail.setText(emailPrefs);
+			txtLogInPassword.setText(passwordPrefs);
+		}
+	}
+	
+	private void showBiometricPrompt() {
+		BiometricManager biometricManager = BiometricManager.from(this);
+		int canAuth = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK | BiometricManager.Authenticators.DEVICE_CREDENTIAL);
+		
+		if (canAuth != BiometricManager.BIOMETRIC_SUCCESS) {
+			// Device doesn't support biometric/PIN, proceed without authentication
+			lastAuthTime = System.currentTimeMillis();
+			if (pendingEmail != null) {
+				checkMode(pendingEmail);
+			}
+			return;
+		}
+		
+		BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
+				.setTitle(getString(R.string.app_name))
+				.setSubtitle("Verify your identity to continue")
+				.setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK | BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+				.build();
+		
+		BiometricPrompt biometricPrompt = new BiometricPrompt(this,
+				ContextCompat.getMainExecutor(this),
+				new BiometricPrompt.AuthenticationCallback() {
+					@Override
+					public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
+						super.onAuthenticationSucceeded(result);
+						lastAuthTime = System.currentTimeMillis();
+						if (pendingEmail != null) {
+							checkMode(pendingEmail);
+						}
+					}
+					
+					@Override
+					public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
+						super.onAuthenticationError(errorCode, errString);
+						if (errorCode == BiometricPrompt.ERROR_USER_CANCELED || 
+							errorCode == BiometricPrompt.ERROR_NEGATIVE_BUTTON ||
+							errorCode == BiometricPrompt.ERROR_CANCELED) {
+							// User cancelled, close the app
+							finishAffinity();
+						}
+					}
+					
+					@Override
+					public void onAuthenticationFailed() {
+						super.onAuthenticationFailed();
+						// Don't close app, let user retry
+					}
+				});
+		
+		biometricPrompt.authenticate(promptInfo);
+	}
+	
+	public static void updateLastAuthTime() {
+		lastAuthTime = System.currentTimeMillis();
 	}
 	
 	

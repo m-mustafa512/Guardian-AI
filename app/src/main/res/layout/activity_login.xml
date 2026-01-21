@@ -82,13 +82,30 @@
                     android:fontFamily="@font/open_sans_regular"
                     android:inputType="textEmailAddress" />
 
-                <EditText
-                    android:id="@+id/txtLogInPassword"
-                    style="@style/MainEditText"
-                    android:drawableStart="@drawable/ic_lock"
-                    android:hint="@string/password"
-                    android:fontFamily="@font/open_sans_regular"
-                    android:inputType="textPassword" />
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <EditText
+                        android:id="@+id/txtLogInPassword"
+                        style="@style/MainEditText"
+                        android:drawableStart="@drawable/ic_lock"
+                        android:hint="@string/password"
+                        android:fontFamily="@font/open_sans_regular"
+                        android:paddingEnd="48dp"
+                        android:inputType="textPassword" />
+
+                    <ImageButton
+                        android:id="@+id/btnTogglePassword"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_gravity="end|center_vertical"
+                        android:layout_marginEnd="8dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Toggle password visibility"
+                        android:src="@drawable/ic_visibility_off" />
+
+                </FrameLayout>
 
                 <FrameLayout
                     android:layout_width="match_parent"
