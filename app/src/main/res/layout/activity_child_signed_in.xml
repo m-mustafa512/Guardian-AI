@@ -1,187 +1,237 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="#F5F5F5"
     tools:context=".activities.ChildSignedInActivity">
 
-    <androidx.appcompat.widget.Toolbar
-        android:id="@+id/action_bar"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="#EF6C00"
-        android:elevation="4dp"
-        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar">
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/txtTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:text="@string/home"
-            android:textColor="@android:color/white"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-
-        <ImageButton
-            android:id="@+id/btnSettings"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="end"
-            android:layout_marginEnd="16dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_settings"
-            android:tint="@android:color/white" />
-
-    </androidx.appcompat.widget.Toolbar>
-
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
-        <LinearLayout
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/action_bar"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:layout_height="?attr/actionBarSize"
+            android:background="#EF6C00"
+            android:elevation="4dp"
+            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar">
 
-            <!-- Status Card -->
-            <androidx.cardview.widget.CardView
+            <TextView
+                android:id="@+id/txtTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="@string/home"
+                android:textColor="@android:color/white"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/btnSettings"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginEnd="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_settings"
+                android:tint="@android:color/white" />
+
+        </androidx.appcompat.widget.Toolbar>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/dashboard_gradient">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="4dp">
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:paddingBottom="80dp">
 
+                <!-- Home Hub Header -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:background="@android:color/white"
-                    android:padding="24dp"
-                    android:gravity="center">
-
-                    <ImageView
-                        android:id="@+id/imgStatus"
-                        android:layout_width="64dp"
-                        android:layout_height="64dp"
-                        android:src="@drawable/ic_kidsafe"
-                        android:tint="#43A047"
-                        android:layout_marginBottom="16dp"/>
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="24dp"
+                    android:paddingStart="8dp">
 
                     <TextView
-                        android:id="@+id/txtStatus"
+                        android:id="@+id/txtGreeting"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Device is Protected"
-                        android:textSize="22sp"
+                        android:text="Good Morning!"
+                        android:textSize="28sp"
                         android:textStyle="bold"
-                        android:textColor="#43A047"/>
+                        android:textColor="@android:color/white" />
 
                     <TextView
-                        android:id="@+id/txtStatusDesc"
+                        android:id="@+id/txtCurrentDate"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Your parents are keeping you safe ."
-                        android:textSize="14sp"
-                        android:textColor="#757575"
-                        android:layout_marginTop="8dp"
-                        android:textAlignment="center"/>
+                        android:text="Tuesday, January 21"
+                        android:textSize="16sp"
+                        android:textColor="#E0E0E0"
+                        android:layout_marginTop="4dp" />
 
                 </LinearLayout>
 
-            </androidx.cardview.widget.CardView>
-
-            <!-- Usage Summary Card -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="4dp">
-
-                <LinearLayout
+                <!-- Status Card -->
+                <androidx.cardview.widget.CardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Today's Activity"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="@android:color/black"/>
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="20dp"
+                    app:cardElevation="2dp"
+                    app:cardBackgroundColor="#CCFFFFFF">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginTop="16dp"
-                        android:gravity="center_vertical">
+                        android:orientation="vertical"
+                        android:padding="24dp"
+                        android:gravity="center">
 
                         <ImageView
-                            android:layout_width="32dp"
-                            android:layout_height="32dp"
-                            android:src="@drawable/ic_timer"
-                            android:tint="#EF6C00"/>
+                            android:id="@+id/imgStatus"
+                            android:layout_width="64dp"
+                            android:layout_height="64dp"
+                            android:src="@drawable/ic_kidsafe"
+                            android:tint="#43A047"
+                            android:layout_marginBottom="16dp"/>
 
                         <TextView
-                            android:id="@+id/txtScreenTime"
+                            android:id="@+id/txtStatus"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Thinking..."
-                            android:textSize="24sp"
+                            android:text="Device is Protected"
+                            android:textSize="22sp"
                             android:textStyle="bold"
-                            android:layout_marginStart="16dp"
-                            android:textColor="#333333"/>
-                        
+                            android:textColor="#43A047"/>
+
+                        <TextView
+                            android:id="@+id/txtStatusDesc"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Your parents are keeping you safe ."
+                            android:textSize="14sp"
+                            android:textColor="#757575"
+                            android:layout_marginTop="8dp"
+                            android:textAlignment="center"/>
+
                     </LinearLayout>
 
-                </LinearLayout>
+                </androidx.cardview.widget.CardView>
 
-            </androidx.cardview.widget.CardView>
-
-             <!-- Educational / Policy Card -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                app:cardCornerRadius="12dp"
-                app:cardBackgroundColor="#E3F2FD"
-                app:cardElevation="4dp">
-
-                <LinearLayout
+                <!-- Usage Summary Card -->
+                <androidx.cardview.widget.CardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-                    
-                    <TextView
-                        android:layout_width="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="20dp"
+                    app:cardElevation="2dp"
+                    app:cardBackgroundColor="#CCFFFFFF">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Did you know?"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="#1976D2"/>
+                        android:orientation="vertical"
+                        android:padding="20dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Today's Activity"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="@android:color/black"/>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginTop="16dp"
+                            android:gravity="center_vertical">
+
+                            <ImageView
+                                android:layout_width="32dp"
+                                android:layout_height="32dp"
+                                android:src="@drawable/ic_timer"
+                                android:tint="#EF6C00"/>
+
+                            <TextView
+                                android:id="@+id/txtScreenTime"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Thinking..."
+                                android:textSize="24sp"
+                                android:textStyle="bold"
+                                android:layout_marginStart="16dp"
+                                android:textColor="#333333"/>
+                            
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </androidx.cardview.widget.CardView>
+
+                 <!-- Educational / Policy Card -->
+                <androidx.cardview.widget.CardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="20dp"
+                    app:cardElevation="2dp"
+                    app:cardBackgroundColor="#CCFFFFFF">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp">
                         
-                     <TextView
-                        android:id="@+id/txtSafetyTip"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Spending time outside helps you relax and focus better!"
-                        android:textSize="14sp"
-                        android:textColor="#1976D2"
-                        android:layout_marginTop="8dp"/>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Did you know?"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="#1976D2"/>
+                            
+                         <TextView
+                            android:id="@+id/txtSafetyTip"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Spending time outside helps you relax and focus better!"
+                            android:textSize="14sp"
+                            android:textColor="#1976D2"
+                            android:layout_marginTop="8dp"/>
 
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
 
-        </LinearLayout>
-    </ScrollView>
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
 
-</LinearLayout>
+    <!-- SOS Floating Action Button -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabSOS"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="24dp"
+        android:src="@drawable/ic_warning"
+        android:tint="@android:color/white"
+        app:backgroundTint="#D32F2F"
+        app:fabSize="normal"
+        android:contentDescription="SOS Emergency Button" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

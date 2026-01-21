@@ -82,7 +82,57 @@ public class ChildSignedInActivity extends AppCompatActivity implements OnPermis
 			
 			setupRealtimeListeners(email);
 			displayRandomSafetyTip();
+			setupSOSButton(email);
 		}
+	}
+
+	private void setupSOSButton(String email) {
+		com.google.android.material.floatingactionbutton.FloatingActionButton fabSOS = findViewById(R.id.fabSOS);
+		if (fabSOS == null) return;
+		
+		fabSOS.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				// Show confirmation
+				new android.app.AlertDialog.Builder(ChildSignedInActivity.this)
+					.setTitle("Send SOS Alert?")
+					.setMessage("This will immediately notify your parents with your current location.")
+					.setPositiveButton("Send SOS", (dialog, which) -> {
+						sendSOSAlert(email);
+					})
+					.setNegativeButton("Cancel", null)
+					.show();
+			}
+		});
+	}
+
+	private void sendSOSAlert(String email) {
+		com.google.firebase.database.DatabaseReference ref = com.google.firebase.database.FirebaseDatabase.getInstance().getReference("users/childs");
+		ref.orderByChild("email").equalTo(email).addListenerForSingleValueEvent(new com.google.firebase.database.ValueEventListener() {
+			@Override
+			public void onDataChange(@NonNull com.google.firebase.database.DataSnapshot snapshot) {
+				if (snapshot.exists()) {
+					String uid = snapshot.getChildren().iterator().next().getKey();
+					if (uid != null) {
+						// Push alert
+						com.mustafafyp.guardianai.models.Alert sosAlert = new com.mustafafyp.guardianai.models.Alert(
+							"SOS Emergency",
+							"Child has triggered an SOS alert!",
+							System.currentTimeMillis()
+						);
+						com.google.firebase.database.FirebaseDatabase.getInstance()
+							.getReference("users/childs/" + uid + "/alerts")
+							.push()
+							.setValue(sosAlert);
+						
+						Toast.makeText(ChildSignedInActivity.this, "SOS Alert Sent!", Toast.LENGTH_SHORT).show();
+					}
+				}
+			}
+
+			@Override
+			public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) {}
+		});
 	}
 
 	private void setupRealtimeListeners(String email) {
@@ -108,8 +158,28 @@ public class ChildSignedInActivity extends AppCompatActivity implements OnPermis
 		TextView txtStatus = findViewById(R.id.txtStatus); 
 		TextView txtStatusDesc = findViewById(R.id.txtStatusDesc);
 		ImageView imgStatus = findViewById(R.id.imgStatus);
+		TextView txtGreeting = findViewById(R.id.txtGreeting);
+		TextView txtCurrentDate = findViewById(R.id.txtCurrentDate);
 
 		if (txtStatus == null || child.getScreenLock() == null) return;
+
+		// Update Greeting
+		if (txtGreeting != null) {
+			java.util.Calendar c = java.util.Calendar.getInstance();
+			int timeOfDay = c.get(java.util.Calendar.HOUR_OF_DAY);
+			String greeting;
+			if (timeOfDay < 12) greeting = "Good Morning, ";
+			else if (timeOfDay < 16) greeting = "Good Afternoon, ";
+			else greeting = "Good Evening, ";
+			
+			txtGreeting.setText(greeting + child.getName() + "!");
+		}
+
+		// Update Date
+		if (txtCurrentDate != null) {
+			java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("EEEE, MMMM dd", java.util.Locale.getDefault());
+			txtCurrentDate.setText(sdf.format(new java.util.Date()));
+		}
 
 		if (child.getScreenLock().isLocked()) {
 			txtStatus.setText("Device is Locked");
