@@ -51,6 +51,7 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
+import org.osmdroid.views.overlay.Polygon;
 import org.osmdroid.views.overlay.gestures.RotationGestureOverlay;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
@@ -77,6 +78,7 @@ public class LocationFragment extends Fragment implements OnGeoFenceSettingListe
 	private TextView txtNoLocation;
 	private FrameLayout layoutLocation;
 	private ProgressBar progressbarLocationFragment;
+	private Polygon geofenceCircle;
 	
 	
 	@Nullable
@@ -199,6 +201,16 @@ public class LocationFragment extends Fragment implements OnGeoFenceSettingListe
 					try {
 						childLocation = child.getLocation();
 						addMarkerForChild(childLocation);
+						
+						// Draw geofence circle if enabled
+						if (childLocation.isGeoFence() && childLocation.getFenceDiameter() > 0) {
+							drawGeofenceCircle(
+								childLocation.getFenceCenterLatitude(),
+								childLocation.getFenceCenterLongitude(),
+								childLocation.getFenceDiameter() / 2 // radius = diameter / 2
+							);
+						}
+						
 						progressbarLocationFragment.setVisibility(View.GONE);
 						txtNoLocation.setVisibility(View.GONE);
 						layoutLocation.setVisibility(View.VISIBLE);
@@ -271,6 +283,36 @@ public class LocationFragment extends Fragment implements OnGeoFenceSettingListe
 		mapView.getOverlays().add(rotationGestureOverlay);
 		//mapView.getOverlays().add(scaleBarOverlay);
 		//mapView.getOverlays().add(minimapOverlay);
+	}
+	
+	private void drawGeofenceCircle(double centerLat, double centerLng, double radiusMeters) {
+		// Remove existing geofence circle if any
+		if (geofenceCircle != null) {
+			mapView.getOverlays().remove(geofenceCircle);
+		}
+		
+		// Create circle points
+		java.util.ArrayList<GeoPoint> circlePoints = new java.util.ArrayList<>();
+		GeoPoint center = new GeoPoint(centerLat, centerLng);
+		
+		// Generate 36 points around the circle (every 10 degrees)
+		for (int i = 0; i < 360; i += 10) {
+			circlePoints.add(center.destinationPoint(radiusMeters, i));
+		}
+		
+		// Create polygon
+		geofenceCircle = new Polygon();
+		geofenceCircle.setPoints(circlePoints);
+		
+		// Style: semi-transparent blue fill with solid blue border
+		geofenceCircle.setFillColor(0x300066FF); // ~20% opacity blue
+		geofenceCircle.setStrokeColor(0xFF0066FF); // Solid blue
+		geofenceCircle.setStrokeWidth(3f);
+		geofenceCircle.setTitle("Geofence Area");
+		
+		// Add to map
+		mapView.getOverlays().add(geofenceCircle);
+		mapView.invalidate();
 	}
 	
 	private void getUserLocation() {
