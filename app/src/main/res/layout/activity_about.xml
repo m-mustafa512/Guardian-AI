@@ -31,7 +31,7 @@
                 android:layout_gravity="center"
                 android:layout_marginTop="40dp"
                 android:layout_marginBottom="@dimen/margin_8dp"
-                android:src="@drawable/child_care_square" />
+                android:src="@drawable/logo_guardian_ai" />
 
 
             <LinearLayout
@@ -108,7 +108,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/margin_32dp"
-                    android:text="developer1"
+                    android:text="Mustafa"
                     android:fontFamily="@font/open_sans_regular"
                     android:includeFontPadding="false"
                     android:textSize="@dimen/text_size_16sp" />
@@ -117,7 +117,16 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/margin_32dp"
-                    android:text="developer2"
+                    android:text="Sarosh"
+                    android:fontFamily="@font/open_sans_regular"
+                    android:includeFontPadding="false"
+                    android:textSize="@dimen/text_size_16sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/margin_32dp"
+                    android:text="Haris"
                     android:fontFamily="@font/open_sans_regular"
                     android:includeFontPadding="false"
                     android:textSize="@dimen/text_size_16sp" />
@@ -138,7 +147,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/margin_32dp"
-                    android:text="Supervisor name"
+                    android:text="Sir Usman Ali"
                     android:fontFamily="@font/open_sans_regular"
                     android:includeFontPadding="false"
                     android:textSize="@dimen/text_size_16sp" />

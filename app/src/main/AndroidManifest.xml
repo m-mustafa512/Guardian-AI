@@ -37,8 +37,8 @@
     <application
         android:name="com.mustafafyp.guardianai.NotificationChannelCreator"
         android:allowBackup="true"
-        android:icon="@drawable/child_care_square"
-        android:roundIcon="@drawable/child_care"
+        android:icon="@mipmap/ic_launcher_logonew"
+        android:roundIcon="@mipmap/ic_launcher_logonew_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme.NoActionBar">

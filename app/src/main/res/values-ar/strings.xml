@@ -89,7 +89,6 @@
     <string name="location_permission_explanation">هناك حاجة إلى هذا الإذن للسماح لك بالحصول على موقع طفلك</string>
     <string name="lock">إغلاق</string>
     <string name="login_with_google">تسجيل الدخول بجوجل</string>
-    <string name="many_thanks_goes_to_freepik_and_smashiocns_for_the_graphics">جزيل الشكر لموقع freepik.com و smashicons.com للتصميمات</string>
     <string name="messages">الرسائل</string>
     <string name="minutes_ago">دقائق ماضيه</string>
     <string name="name_validation">أدخل اسمًا أقل من 15 حرفًا</string>
@@ -164,7 +163,7 @@
     <string name="yesterday">بالأمس</string>
     <string name="you_re_offline_ncheck_your_connection_and_try_again">أنت غير متصل بالانترنت</string>
     <string name="your_email">بريدك الالكتروني</string>
-    <string name="about_message">KidSafe هو تطبيق الرقابة الأبوية على نظام Android المجاني والمفتوح المصدر والذي يسمح للآباء بإبقاء نشاط أطفالهم تحت السيطرة. تم تطوير KidSafe كمشروع تخرج من قبل الأعضاء المحددين أدناه</string>
+    <string name="about_message">GuardianAI هو تطبيق الرقابة الأبوية على نظام Android المجاني والمفتوح المصدر والذي يسمح للآباء بإبقاء نشاط أطفالهم تحت السيطرة. تم تطوير KidSafe كمشروع تخرج من قبل الأعضاء المحددين أدناه</string>
     <string name="please_turn_on_the_gps">قم بتفعيل ال GPS عند</string>
     <string name="select_app_language">أختر لغة التطبيق</string>
     <string name="already_have_an_account">Already have an account?</string>

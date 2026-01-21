@@ -24,7 +24,7 @@
         <ImageView
             android:layout_width="@dimen/margin_64dp"
             android:layout_height="@dimen/margin_64dp"
-            android:src="@drawable/child_care_square"
+            android:src="@drawable/logo_guardian_ai"
             android:layout_gravity="center"
             android:layout_marginTop="@dimen/margin_8dp"/>
 
