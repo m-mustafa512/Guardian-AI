@@ -22,14 +22,16 @@ import com.mustafafyp.guardianai.models.App;
 import java.util.ArrayList;
 
 import static com.mustafafyp.guardianai.activities.ParentSignedInActivity.APPS_EXTRA;
+import static com.mustafafyp.guardianai.activities.ParentSignedInActivity.CHILD_EMAIL_EXTRA;
 import static com.mustafafyp.guardianai.activities.ParentSignedInActivity.CHILD_NAME_EXTRA;
 
 public class ChildDetailsActivity extends AppCompatActivity {
 	private static final String TAG = "ChildDetailsTAG";
 	private ArrayList<App> apps;
 	private ImageButton btnBack;
-	private ImageButton btnSettings;
+	private ImageButton btnAlerts;
 	private TextView txtTitle;
+	private String childEmail;
 	
 	
 	@Override
@@ -44,19 +46,27 @@ public class ChildDetailsActivity extends AppCompatActivity {
 				onBackPressed();
 			}
 		});
-		btnSettings = findViewById(R.id.btnSettings);
-		btnSettings.setOnClickListener(new View.OnClickListener() {
+		btnAlerts = findViewById(R.id.btnSettings); // Repurposing settings button for alerts
+		btnAlerts.setImageResource(R.drawable.ic_bell); // Use a bell icon
+		btnAlerts.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				Intent intent = new Intent(ChildDetailsActivity.this, SettingsActivity.class);
-				startActivity(intent);
+				android.util.Log.i("ALERTS_DEBUG", "Alerts button clicked, childEmail: " + childEmail);
+				if (childEmail != null) {
+					Intent alertsIntent = new Intent(ChildDetailsActivity.this, AlertsActivity.class);
+					alertsIntent.putExtra(AlertsActivity.CHILD_EMAIL_EXTRA, childEmail);
+					startActivity(alertsIntent);
+				} else {
+					android.util.Log.e("ALERTS_DEBUG", "Cannot open alerts - childEmail is null!");
+				}
 			}
 		});
 		txtTitle = findViewById(R.id.txtTitle);
 		
 		Intent intent = getIntent();
 		String childName = intent.getStringExtra(CHILD_NAME_EXTRA);
-		//final String childEmail = intent.getStringExtra(CHILD_EMAIL_EXTRA);
+		childEmail = intent.getStringExtra(CHILD_EMAIL_EXTRA);
+		android.util.Log.i("ALERTS_DEBUG", "ChildDetailsActivity received childEmail: " + childEmail);
 		apps = intent.getParcelableArrayListExtra(APPS_EXTRA);
         /*for (App app : apps) {
             Log.i(TAG, "onItemClick: appName: " + app.getAppName() + " " + "packageName" + app.getPackageName());

@@ -107,12 +107,15 @@ public class ChildSignedInActivity extends AppCompatActivity implements OnPermis
 	}
 
 	private void sendSOSAlert(String email) {
+		android.util.Log.i("SOS_DEBUG", "sendSOSAlert called with email: " + email);
 		com.google.firebase.database.DatabaseReference ref = com.google.firebase.database.FirebaseDatabase.getInstance().getReference("users/childs");
 		ref.orderByChild("email").equalTo(email).addListenerForSingleValueEvent(new com.google.firebase.database.ValueEventListener() {
 			@Override
 			public void onDataChange(@NonNull com.google.firebase.database.DataSnapshot snapshot) {
+				android.util.Log.i("SOS_DEBUG", "Firebase query returned, exists: " + snapshot.exists());
 				if (snapshot.exists()) {
 					String uid = snapshot.getChildren().iterator().next().getKey();
+					android.util.Log.i("SOS_DEBUG", "Found child UID: " + uid);
 					if (uid != null) {
 						// Push alert
 						com.mustafafyp.guardianai.models.Alert sosAlert = new com.mustafafyp.guardianai.models.Alert(
@@ -123,17 +126,24 @@ public class ChildSignedInActivity extends AppCompatActivity implements OnPermis
 						com.google.firebase.database.FirebaseDatabase.getInstance()
 							.getReference("users/childs/" + uid + "/alerts")
 							.push()
-							.setValue(sosAlert);
+							.setValue(sosAlert)
+							.addOnSuccessListener(v -> android.util.Log.i("SOS_DEBUG", "SOS Alert written SUCCESSFULLY"))
+							.addOnFailureListener(e -> android.util.Log.e("SOS_DEBUG", "SOS Alert write FAILED", e));
 						
 						Toast.makeText(ChildSignedInActivity.this, "SOS Alert Sent!", Toast.LENGTH_SHORT).show();
 					}
+				} else {
+					android.util.Log.e("SOS_DEBUG", "No child found with email: " + email);
 				}
 			}
 
 			@Override
-			public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) {}
+			public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) {
+				android.util.Log.e("SOS_DEBUG", "Firebase query cancelled", error.toException());
+			}
 		});
 	}
+
 
 	private void setupRealtimeListeners(String email) {
 		com.google.firebase.database.DatabaseReference ref = com.google.firebase.database.FirebaseDatabase.getInstance().getReference("users/childs");

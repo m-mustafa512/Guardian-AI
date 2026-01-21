@@ -1,6 +1,7 @@
 package com.mustafafyp.guardianai.activities;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 
 import androidx.annotation.NonNull;
@@ -47,10 +48,10 @@ public class AlertsActivity extends AppCompatActivity {
                 onBackPressed();
             }
         });
-
+        Log.i("ALERTS", "childEmail = " + childEmail);
         recyclerViewAlerts = findViewById(R.id.recyclerViewAlerts);
         recyclerViewAlerts.setLayoutManager(new LinearLayoutManager(this));
-        
+        Log.i("ALERTS_DEBUG", "childEmail = " + childEmail);
         childEmail = getIntent().getStringExtra(CHILD_EMAIL_EXTRA);
         databaseReference = FirebaseDatabase.getInstance().getReference("users");
         
@@ -67,6 +68,7 @@ public class AlertsActivity extends AppCompatActivity {
                 if (dataSnapshot.exists()) {
                     DataSnapshot nodeShot = dataSnapshot.getChildren().iterator().next();
                     String uid = nodeShot.getKey();
+                    Log.i("ALERTS_DEBUG", "Found child UID = " + uid);
                     
                     databaseReference.child("childs").child(uid).child("alerts")
                             .addValueEventListener(new ValueEventListener() {
@@ -76,6 +78,8 @@ public class AlertsActivity extends AppCompatActivity {
                             for (DataSnapshot alertShot : alertsSnapshot.getChildren()) {
                                 Alert alert = alertShot.getValue(Alert.class);
                                 alerts.add(alert);
+                                Log.i("ALERTS_DEBUG", "Loaded " + alerts.size() + " alerts");
+
                             }
                             Collections.reverse(alerts); // Newest first
                             alertAdapter = new AlertAdapter(AlertsActivity.this, alerts);
