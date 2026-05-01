@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- 3x2 grid of dots — standard "more" affordance -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M4,8c1.1,0 2,-0.9 2,-2S5.1,4 4,4S2,4.9 2,6S2.9,8 4,8zM12,8c1.1,0 2,-0.9 2,-2S13.1,4 12,4S10,4.9 10,6S10.9,8 12,8zM20,8c1.1,0 2,-0.9 2,-2S21.1,4 20,4S18,4.9 18,6S18.9,8 20,8zM4,16c1.1,0 2,-0.9 2,-2S5.1,12 4,12S2,12.9 2,14S2.9,16 4,16zM12,16c1.1,0 2,-0.9 2,-2S13.1,12 12,12S10,12.9 10,14S10.9,16 12,16zM20,16c1.1,0 2,-0.9 2,-2S21.1,12 20,12S18,12.9 18,14S18.9,16 20,16z"/>
+</vector>

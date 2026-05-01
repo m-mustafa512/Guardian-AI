@@ -8,20 +8,16 @@
         android:id="@+id/navLocation"
         android:icon="@drawable/ic_location"
         android:title="@string/location" />
-
-    <item
-        android:id="@+id/navActivityLog"
-        android:icon="@drawable/ic_stats"
-        android:title="@string/activity_log" />
-
     <item
         android:id="@+id/navScreenTime"
         android:icon="@drawable/ic_timer"
         android:title="Screen Time" />
-
     <item
         android:id="@+id/navAiMonitor"
         android:icon="@drawable/ic_verified_user"
         android:title="AI Monitor" />
-
-</menu>
+    <item
+        android:id="@+id/navMore"
+        android:icon="@drawable/ic_more_grid"
+        android:title="More" />
+</menu>

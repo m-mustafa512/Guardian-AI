@@ -147,4 +147,21 @@ public class Child extends User {
 			this.dailyUsage = (HashMap<String, Long>) dailyUsage;
 		}
 	}
+
+	// ── Module 9: Content Filtering & Network Tracking ─────────────────────
+
+	private java.util.List<String> keywordFilterList = new java.util.ArrayList<>();
+	private HashMap<String, Object> networkUsage = new HashMap<>();
+
+	public java.util.List<String> getKeywordFilterList() { return keywordFilterList; }
+	public void setKeywordFilterList(java.util.List<String> keywordFilterList) {
+		this.keywordFilterList = keywordFilterList;
+	}
+
+	public HashMap<String, Object> getNetworkUsage() { return networkUsage; }
+	public void setNetworkUsage(Object networkUsage) {
+		if (networkUsage instanceof HashMap) {
+			this.networkUsage = (HashMap<String, Object>) networkUsage;
+		}
+	}
 }

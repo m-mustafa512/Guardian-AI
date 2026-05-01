@@ -16,7 +16,9 @@ import com.mustafafyp.guardianai.R;
 import com.mustafafyp.guardianai.fragments.ActivityLogFragment;
 import com.mustafafyp.guardianai.fragments.AiMonitorFragment;
 import com.mustafafyp.guardianai.fragments.AppsFragment;
+import com.mustafafyp.guardianai.fragments.ContentFilterFragment;
 import com.mustafafyp.guardianai.fragments.LocationFragment;
+import com.mustafafyp.guardianai.fragments.MoreFragment;
 import com.mustafafyp.guardianai.fragments.ScreenTimeFragment;
 import com.mustafafyp.guardianai.models.App;
 
@@ -92,21 +94,16 @@ public class ChildDetailsActivity extends AppCompatActivity {
 
 				if (id == R.id.navApps) {
 					selectedFragment = new AppsFragment();
-					//bundle.putParcelableArrayList(APPS_EXTRA, apps);  //not needed since we're sending it from
-					//selectedFragment.setArguments(bundle);            //the ParentSignedInActivity
 
 				} else if (id == R.id.navLocation) {
 					selectedFragment = new LocationFragment();
-					//bundle.putString(CHILD_EMAIL_EXTRA, childEmail);
-					//selectedFragment.setArguments(bundle);
-
-				} else if (id == R.id.navActivityLog) {
-					selectedFragment = new ActivityLogFragment();
 
 				} else if (id == R.id.navScreenTime) {
 					selectedFragment = new ScreenTimeFragment();
 				} else if (id == R.id.navAiMonitor) {
 					selectedFragment = new AiMonitorFragment();
+				} else if (id == R.id.navMore) {
+					selectedFragment = new MoreFragment();
 				}
 
 

@@ -41,6 +41,9 @@ import com.mustafafyp.guardianai.broadcasts.*;
 import com.mustafafyp.guardianai.models.*;
 import com.mustafafyp.guardianai.ai.BehaviorAnomalyDetector;
 import com.mustafafyp.guardianai.ai.FeatureNormConstants;
+import com.mustafafyp.guardianai.models.AppNetworkUsage;
+import com.mustafafyp.guardianai.utils.NetworkUsageManager;
+import com.mustafafyp.guardianai.utils.PermissionRiskScanner;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -92,14 +95,23 @@ public class MainForegroundService extends Service {
 
 	private BehaviorAnomalyDetector anomalyDetector;
 
+	// Module 9 — Content Filtering & Network Tracking
+	private NetworkUsageManager networkUsageManager;
+	private ValueEventListener  keywordListListener;
+
+	// Module 10 — Privacy & Permission Awareness
+	private PermissionRiskScanner permissionRiskScanner;
+
 	// ===================== LIFECYCLE =====================
 
 	@Override
 	public void onCreate() {
 		super.onCreate();
-		scheduler = Executors.newScheduledThreadPool(2);
+		scheduler = Executors.newScheduledThreadPool(3);
 		locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 		anomalyDetector = new BehaviorAnomalyDetector(this);
+		networkUsageManager = new NetworkUsageManager(this);
+		permissionRiskScanner = new PermissionRiskScanner();
 		Log.i(TAG, "Service created");
 	}
 
@@ -138,6 +150,25 @@ public class MainForegroundService extends Service {
 				TimeUnit.MILLISECONDS
 		);
 
+		// Module 9: poll network usage every 5 minutes
+		scheduler.scheduleAtFixedRate(
+				this::pollNetworkUsage,
+				10,
+				5 * 60,
+				TimeUnit.SECONDS
+		);
+
+		// Module 10: privacy permission audit — run on startup then every 30 minutes
+		scheduler.scheduleAtFixedRate(
+				this::runPrivacyAuditScan,
+				15,           // 15s delay so apps list loads from Firebase first
+				30 * 60,      // every 30 minutes
+				TimeUnit.SECONDS
+		);
+
+		// Module 9: listen for keyword list changes from parent
+		setupKeywordListListener();
+
 		return START_STICKY;
 	}
 
@@ -162,6 +193,12 @@ public class MainForegroundService extends Service {
 		removeFirebaseListeners();
 
 		if (anomalyDetector != null) anomalyDetector.close();
+
+		// Module 9 cleanup
+		if (keywordListListener != null && uid != null) {
+			databaseReference.child("childs").child(uid)
+					.child("keywordFilterList").removeEventListener(keywordListListener);
+		}
 	}
 
 	@Override
@@ -204,6 +241,10 @@ public class MainForegroundService extends Service {
 
 						apps = child.getApps();
 						appsLoadedFromFirebase = true;
+
+						// Module 9: capture session-start baseline now that apps are known
+						// The first poll (10s later) will have real data immediately
+						networkUsageManager.initSessionBaseline(apps);
 
 						mergeInstalledAppsWithFirebase();
 					}
@@ -979,6 +1020,107 @@ public class MainForegroundService extends Service {
 				.setValue(aiStatus)
 				.addOnSuccessListener(v -> Log.d(TAG, "aiStatus updated in Firebase."))
 				.addOnFailureListener(e -> Log.e(TAG, "Failed to update aiStatus.", e));
-		// ────────────────────────────────────────────────────────────────────
+
+		// ── Also push to aiHistory list (persists across fragment opens) ─────
+		databaseReference.child("childs").child(uid)
+				.child("aiHistory")
+				.push()
+				.setValue(aiStatus)
+				.addOnFailureListener(e -> Log.e(TAG, "Failed to push aiHistory.", e));
+		// ─────────────────────────────────────────────────────────────────────
+	}
+
+	// ===================== MODULE 10: PRIVACY AUDIT SCAN =====================
+
+	/**
+	 * Scans installed apps for sensitive permissions, computes risk scores,
+	 * and uploads the audit result to Firebase under privacyAudit/apps.
+	 * Runs on a background thread via the ScheduledExecutorService.
+	 */
+	private void runPrivacyAuditScan() {
+		try {
+			if (!appsLoadedFromFirebase || apps == null || uid == null) return;
+
+			java.util.List<AppPermissionInfo> auditResult =
+					permissionRiskScanner.scanInstalledApps(getPackageManager(), apps);
+
+			// Upload results to Firebase
+			databaseReference.child("childs").child(uid)
+					.child("privacyAudit").child("apps")
+					.setValue(auditResult)
+					.addOnSuccessListener(v -> Log.d(TAG, "privacyAudit uploaded: " + auditResult.size() + " apps"))
+					.addOnFailureListener(e -> Log.e(TAG, "privacyAudit upload failed", e));
+
+			databaseReference.child("childs").child(uid)
+					.child("privacyAudit").child("lastScanned")
+					.setValue(System.currentTimeMillis());
+
+			Log.i(TAG, "runPrivacyAuditScan: completed, " + auditResult.size() + " apps scanned");
+		} catch (Exception e) {
+			Log.e(TAG, "runPrivacyAuditScan error", e);
+		}
+	}
+
+	// ===================== MODULE 9: NETWORK USAGE POLLING =====================
+
+	private void pollNetworkUsage() {
+		try {
+			if (apps == null || apps.isEmpty() || uid == null) return;
+
+			NetworkUsageManager.PollResult result = networkUsageManager.pollNetworkUsage(apps);
+
+			String date = new java.text.SimpleDateFormat(
+					"yyyy-MM-dd", Locale.getDefault()).format(new Date());
+
+			// Upload deltas to Firebase
+			for (AppNetworkUsage usage : result.usageList) {
+				databaseReference.child("childs").child(uid)
+						.child("networkUsage")
+						.child(date)
+						.child(sanitizeKey(usage.getPackageName()))
+						.setValue(usage);
+			}
+
+			// Fire alerts for large transfers
+			for (AppNetworkUsage alert : result.largeTranferAlerts) {
+				long totalMb = alert.getTotalBytes() / (1024 * 1024);
+				logAlert(
+						"Large Data Transfer Detected",
+						alert.getAppName() + " transferred " + totalMb + " MB in one session.",
+						uid
+				);
+				Log.w(TAG, "Large transfer alert: " + alert.getAppName() + " — " + totalMb + " MB");
+			}
+		} catch (Exception e) {
+			Log.e(TAG, "pollNetworkUsage error", e);
+		}
+	}
+
+	private void setupKeywordListListener() {
+		if (uid == null) return;
+		keywordListListener = new ValueEventListener() {
+			@Override
+			public void onDataChange(@NonNull DataSnapshot snapshot) {
+				ArrayList<String> keywords = new ArrayList<>();
+				for (DataSnapshot child : snapshot.getChildren()) {
+					String kw = child.getValue(String.class);
+					if (kw != null && !kw.isEmpty()) keywords.add(kw);
+				}
+				// Broadcast updated keyword list to ContentFilterAccessibilityService
+				Intent intent = new Intent(ContentFilterAccessibilityService.ACTION_UPDATE_KEYWORDS);
+				intent.putStringArrayListExtra(ContentFilterAccessibilityService.EXTRA_KEYWORDS, keywords);
+				sendBroadcast(intent);
+				Log.i(TAG, "Keyword list broadcast sent: " + keywords.size() + " keywords");
+			}
+			@Override public void onCancelled(@NonNull DatabaseError e) {}
+		};
+		databaseReference.child("childs").child(uid)
+				.child("keywordFilterList")
+				.addValueEventListener(keywordListListener);
+	}
+
+	/** Replaces dots in package names so they can be used as Firebase keys */
+	private String sanitizeKey(String packageName) {
+		return packageName != null ? packageName.replace(".", "_") : "unknown";
 	}
 }

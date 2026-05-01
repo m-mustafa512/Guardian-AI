@@ -23,6 +23,7 @@
     <string name="select_geofence_s_center">Center</string>
     <string name="diameter_in_meters">Diameter in meters</string>
     <string name="device_admin_description">Allow GuardianAI to lock the device</string>
+    <string name="accessibility_service_description">Guardian AI uses this service to scan on-screen text for restricted keywords to protect children from harmful content.</string>
     <string name="device_admin" translatable="false">GuardianAI</string>
     <string name="device_admin_explanation">GuardianAI need to be device admin to be able to lock the phone</string>
     <string name="device_admin_enabled">Device Admin Enabled</string>

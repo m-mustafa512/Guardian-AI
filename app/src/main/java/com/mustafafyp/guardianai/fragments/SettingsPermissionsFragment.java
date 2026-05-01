@@ -37,6 +37,7 @@ public class SettingsPermissionsFragment extends Fragment implements CompoundBut
 	private Switch switchOverlayPermission;
 	private Switch switchPackageUsagePermission;
 	private Switch switchDeviceAdminPermission;
+	private Switch switchAccessibilityPermission; // Module 9
 	private Context context;
 	private Activity activity;
 	private View layout;
@@ -113,6 +114,11 @@ public class SettingsPermissionsFragment extends Fragment implements CompoundBut
 		switchDeviceAdminPermission = view.findViewById(R.id.switchDeviceAdminPermission);
 		switchDeviceAdminPermission.setChecked(isDeviceAdmin());
 		switchDeviceAdminPermission.setOnCheckedChangeListener(this);
+
+		// Module 9: Accessibility Service
+		switchAccessibilityPermission = view.findViewById(R.id.switchAccessibilityPermission);
+		switchAccessibilityPermission.setChecked(isAccessibilityServiceEnabled());
+		switchAccessibilityPermission.setOnCheckedChangeListener(this);
 		
 	}
 	
@@ -171,6 +177,9 @@ public class SettingsPermissionsFragment extends Fragment implements CompoundBut
 
 			} else if (id == R.id.switchDeviceAdminPermission) {
 				requestDeviceAdminPermission();
+
+			} else if (id == R.id.switchAccessibilityPermission) {
+				requestAccessibilityPermission();
 			}
 
 		}
@@ -227,7 +236,30 @@ public class SettingsPermissionsFragment extends Fragment implements CompoundBut
 		ComponentName componentName = new ComponentName(context, AdminReceiver.class);
 		boolean adminActive = devicePolicyManager.isAdminActive(componentName);
 		enableDeviceAdmin(componentName);
-		
+	}
+
+	// Module 9: Accessibility Service
+	private boolean isAccessibilityServiceEnabled() {
+		android.view.accessibility.AccessibilityManager am =
+				(android.view.accessibility.AccessibilityManager)
+						context.getSystemService(Context.ACCESSIBILITY_SERVICE);
+		if (am == null) return false;
+		java.util.List<android.accessibilityservice.AccessibilityServiceInfo> infos =
+				am.getEnabledAccessibilityServiceList(
+						android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK);
+		String myPkg = context.getPackageName();
+		for (android.accessibilityservice.AccessibilityServiceInfo info : infos) {
+			if (info.getId() != null && info.getId().startsWith(myPkg)) return true;
+		}
+		return false;
+	}
+
+	private void requestAccessibilityPermission() {
+		if (!isAccessibilityServiceEnabled()) {
+			startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+		} else {
+			switchAccessibilityPermission.setChecked(true);
+		}
 	}
 	
 	private void enableDeviceAdmin(ComponentName componentName) {

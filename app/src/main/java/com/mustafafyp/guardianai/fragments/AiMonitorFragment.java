@@ -35,7 +35,7 @@ public class AiMonitorFragment extends Fragment {
 
     // Must match BehaviorAnomalyDetector.ANOMALY_THRESHOLD
     private static final float ANOMALY_THRESHOLD = 0.10151985620725366f;
-    private static final int   MAX_HISTORY       = 5;
+    private static final int   MAX_HISTORY       = 10;
 
     private TextView    txtCurrentStatus, txtScoreValue, txtLastChecked, txtNoHistory;
     private ImageView   imgStatusIconAi;
@@ -107,6 +107,49 @@ public class AiMonitorFragment extends Fragment {
     }
 
     private void attachListener() {
+        // Step 1: Pre-load the last MAX_HISTORY entries from Firebase
+        loadHistoryFromFirebase();
+    }
+
+    private void loadHistoryFromFirebase() {
+        dbRef.child("childs").child(childUid).child("aiHistory")
+                .limitToLast(MAX_HISTORY)
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        if (!isSafe()) return;
+
+                        historyList.clear();
+                        for (DataSnapshot entry : snapshot.getChildren()) {
+                            Object rawScore     = entry.child("score").getValue();
+                            Object rawAnomaly   = entry.child("isAnomaly").getValue();
+                            Object rawTimestamp = entry.child("lastChecked").getValue();
+                            if (rawScore == null) continue;
+
+                            float   score     = rawScore instanceof Double
+                                    ? ((Double) rawScore).floatValue()
+                                    : ((Long) rawScore).floatValue();
+                            boolean isAnomaly = Boolean.TRUE.equals(rawAnomaly);
+                            long    ts        = rawTimestamp instanceof Long
+                                    ? (Long) rawTimestamp
+                                    : System.currentTimeMillis();
+
+                            // Insert at front so newest is first
+                            historyList.add(0, new HistoryEntry(score, isAnomaly, ts));
+                        }
+                        refreshHistory();
+
+                        // Step 2: After history loaded, attach live listener on aiStatus
+                        attachLiveStatusListener();
+                    }
+                    @Override public void onCancelled(@NonNull DatabaseError e) {
+                        // Even if history fails to load, still attach live listener
+                        attachLiveStatusListener();
+                    }
+                });
+    }
+
+    private void attachLiveStatusListener() {
         aiStatusListener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
@@ -128,9 +171,12 @@ public class AiMonitorFragment extends Fragment {
 
                 updateStatusCard(score, isAnomaly, ts);
 
-                historyList.add(0, new HistoryEntry(score, isAnomaly, ts));
-                if (historyList.size() > MAX_HISTORY) historyList.remove(MAX_HISTORY);
-                refreshHistory();
+                // Only add to history if this is a NEW entry (different timestamp)
+                if (historyList.isEmpty() || historyList.get(0).timestamp != ts) {
+                    historyList.add(0, new HistoryEntry(score, isAnomaly, ts));
+                    if (historyList.size() > MAX_HISTORY) historyList.remove(MAX_HISTORY);
+                    refreshHistory();
+                }
             }
             @Override public void onCancelled(@NonNull DatabaseError e) {}
         };

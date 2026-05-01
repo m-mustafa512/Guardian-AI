@@ -30,7 +30,7 @@ public class BehaviorAnomalyDetector {
     // ─────────────────────────────────────────────────────────────────
 
     // From guardian_threshold.txt
-    private static final float ANOMALY_THRESHOLD = 0.10151985620725366f;  // ← REPLACE
+    private static final float ANOMALY_THRESHOLD = 0.40023f;  // ← REPLACE
     //0.10151985620725366f real value
     //0.0011f value for testing
     // Count lines in guardian_features.txt

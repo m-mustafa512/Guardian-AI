@@ -99,6 +99,23 @@
                 android:layout_gravity="end|center" />
         </FrameLayout>
 
+        <!-- Module 9: Accessibility Service for content keyword scanning -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="@dimen/padding_8dp">
+
+            <TextView
+                style="@style/TextViewPermissions"
+                android:text="Content Filter (Accessibility)" />
+
+            <Switch
+                android:id="@+id/switchAccessibilityPermission"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end|center" />
+        </FrameLayout>
+
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
