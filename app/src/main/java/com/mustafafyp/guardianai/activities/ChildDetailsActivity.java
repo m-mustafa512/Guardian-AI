@@ -14,6 +14,7 @@ import androidx.fragment.app.Fragment;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.mustafafyp.guardianai.R;
 import com.mustafafyp.guardianai.fragments.ActivityLogFragment;
+import com.mustafafyp.guardianai.fragments.AiMonitorFragment;
 import com.mustafafyp.guardianai.fragments.AppsFragment;
 import com.mustafafyp.guardianai.fragments.LocationFragment;
 import com.mustafafyp.guardianai.fragments.ScreenTimeFragment;
@@ -104,6 +105,8 @@ public class ChildDetailsActivity extends AppCompatActivity {
 
 				} else if (id == R.id.navScreenTime) {
 					selectedFragment = new ScreenTimeFragment();
+				} else if (id == R.id.navAiMonitor) {
+					selectedFragment = new AiMonitorFragment();
 				}
 
 

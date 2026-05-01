@@ -18,6 +18,9 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+    aaptOptions {
+        noCompress "tflite"
+    }
 }
 
 dependencies {
@@ -43,5 +46,12 @@ dependencies {
     
     // Biometric authentication
     implementation 'androidx.biometric:biometric:1.1.0'
+
+    // TensorFlow Lite core runtime
+    implementation 'org.tensorflow:tensorflow-lite:2.14.0'
+
+// TensorFlow Lite Support Library
+    implementation 'org.tensorflow:tensorflow-lite-support:0.4.4'
+
 
 }

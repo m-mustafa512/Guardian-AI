@@ -30,6 +30,16 @@
                 android:textSize="20sp"
                 android:textStyle="bold" />
 
+            <!-- AI Monitor status dot — green=normal, red=anomaly -->
+            <View
+                android:id="@+id/viewAiStatusDot"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:layout_gravity="end|center_vertical"
+                android:layout_marginEnd="52dp"
+                android:background="@drawable/ic_dot_selected"
+                android:backgroundTint="#43A047" />
+
             <ImageButton
                 android:id="@+id/btnSettings"
                 android:layout_width="wrap_content"

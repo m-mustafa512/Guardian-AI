@@ -317,18 +317,22 @@ public class LoginActivity extends AppCompatActivity implements OnPasswordResetL
 						} catch (ClassCastException e) {
 							e.printStackTrace();
 						}
-						switch (errorCode) {
-							case "ERROR_INVALID_EMAIL":
-								txtLogInEmail.setError(getString(R.string.enter_valid_email));
-								break;
-							case "ERROR_USER_NOT_FOUND":
-								txtLogInEmail.setError(getString(R.string.email_isnt_registered));
-								break;
-							case "ERROR_WRONG_PASSWORD":
-								txtLogInPassword.setError(getString(R.string.wrong_password));
-								break;
-							default:
-								Toast.makeText(LoginActivity.this, getString(R.string.authentication_failed), Toast.LENGTH_SHORT).show();
+						if (errorCode == null) {
+							Toast.makeText(LoginActivity.this, getString(R.string.authentication_failed), Toast.LENGTH_SHORT).show();
+						} else {
+							switch (errorCode) {
+								case "ERROR_INVALID_EMAIL":
+									txtLogInEmail.setError(getString(R.string.enter_valid_email));
+									break;
+								case "ERROR_USER_NOT_FOUND":
+									txtLogInEmail.setError(getString(R.string.email_isnt_registered));
+									break;
+								case "ERROR_WRONG_PASSWORD":
+									txtLogInPassword.setError(getString(R.string.wrong_password));
+									break;
+								default:
+									Toast.makeText(LoginActivity.this, getString(R.string.authentication_failed), Toast.LENGTH_SHORT).show();
+							}
 						}
 					}
 				}

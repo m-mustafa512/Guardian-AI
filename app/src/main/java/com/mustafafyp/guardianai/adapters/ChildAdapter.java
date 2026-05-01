@@ -61,6 +61,7 @@ public class ChildAdapter extends RecyclerView.Adapter<ChildAdapter.ChildAdapter
 		App topApp = null;
 		if (child.getApps() != null) {
 			for (App app : child.getApps()) {
+				if (app == null) continue;
 				if (topApp == null || app.getUsageDuration() > topApp.getUsageDuration()) {
 					topApp = app;
 				}

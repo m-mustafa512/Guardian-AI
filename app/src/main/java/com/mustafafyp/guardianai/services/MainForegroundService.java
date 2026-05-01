@@ -39,6 +39,8 @@ import com.mustafafyp.guardianai.activities.BlockedAppActivity;
 import com.mustafafyp.guardianai.activities.ChildSignedInActivity;
 import com.mustafafyp.guardianai.broadcasts.*;
 import com.mustafafyp.guardianai.models.*;
+import com.mustafafyp.guardianai.ai.BehaviorAnomalyDetector;
+import com.mustafafyp.guardianai.ai.FeatureNormConstants;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -88,6 +90,8 @@ public class MainForegroundService extends Service {
 
 	private long lastBatterySync = 0;
 
+	private BehaviorAnomalyDetector anomalyDetector;
+
 	// ===================== LIFECYCLE =====================
 
 	@Override
@@ -95,6 +99,7 @@ public class MainForegroundService extends Service {
 		super.onCreate();
 		scheduler = Executors.newScheduledThreadPool(2);
 		locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+		anomalyDetector = new BehaviorAnomalyDetector(this);
 		Log.i(TAG, "Service created");
 	}
 
@@ -155,6 +160,8 @@ public class MainForegroundService extends Service {
 		unregisterSafe(screenTimeReceiver);
 
 		removeFirebaseListeners();
+
+		if (anomalyDetector != null) anomalyDetector.close();
 	}
 
 	@Override
@@ -463,11 +470,33 @@ public class MainForegroundService extends Service {
 
 			if (stats == null || stats.isEmpty()) return;
 
-			long total = 0;
-			boolean changed = false;
+			long total       = 0;
+			boolean changed  = false;
+
+			// ── AI feature tracking ──────────────────────────────────
+			float aiLaunches     = 0f;
+			float aiInteractions = 0f;
+			Map<String, Long> categoryUsageMs = new HashMap<>();
+			categoryUsageMs.put("Entertainment", 0L);
+			categoryUsageMs.put("Productivity",  0L);
+			categoryUsageMs.put("Social",        0L);
+			categoryUsageMs.put("Utilities",     0L);
+			// ─────────────────────────────────────────────────────────
 
 			for (UsageStats s : stats) {
 				total += s.getTotalTimeInForeground();
+
+				// AI: only count apps that were actually used
+				if (s.getTotalTimeInForeground() > 0) {
+					aiInteractions++;
+
+
+					// Accumulate usage time per category
+					String cat = getCategoryForPackage(s.getPackageName());
+					long prev = categoryUsageMs.containsKey(cat) ? categoryUsageMs.get(cat) : 0L;
+					categoryUsageMs.put(cat, prev + s.getTotalTimeInForeground());
+				}
+
 				for (App app : apps) {
 					if (app.getPackageName().equals(s.getPackageName())) {
 						if (app.getUsageDuration() != s.getTotalTimeInForeground()) {
@@ -478,6 +507,9 @@ public class MainForegroundService extends Service {
 					}
 				}
 			}
+
+			// Approximate launches as number of distinct apps used (interactions)
+			aiLaunches = aiInteractions;
 
 			String date = new java.text.SimpleDateFormat(
 					"yyyy-MM-dd", Locale.getDefault()).format(new Date());
@@ -491,6 +523,44 @@ public class MainForegroundService extends Service {
 			if (changed) uploadApps(apps);
 
 			throttleBatterySync();
+
+			// ── AI Anomaly Detection ──────────────────────────────────
+			float screenTimeMin = total / 60000f;
+
+			// Find dominant category
+			String dominantCat = "Utilities";
+			long   maxUsage    = -1L;
+			for (Map.Entry<String, Long> entry : categoryUsageMs.entrySet()) {
+				if (entry.getValue() > maxUsage) {
+					maxUsage    = entry.getValue();
+					dominantCat = entry.getKey();
+				}
+			}
+
+			float isProductive    = dominantCat.equals("Productivity")  ? 1f : 0f;
+			float catEntertainment = dominantCat.equals("Entertainment") ? 1f : 0f;
+			float catProductivity  = dominantCat.equals("Productivity")  ? 1f : 0f;
+			float catSocial        = dominantCat.equals("Social")        ? 1f : 0f;
+			float catUtilities     = dominantCat.equals("Utilities")     ? 1f : 0f;
+
+			// extra_col_11 to extra_col_23: unknown dataset columns — Option A: pass 0f
+			float[] extraCol11to23 = new float[13];
+
+			checkForAnomalousBehavior(
+					screenTimeMin,
+					aiLaunches,
+					aiInteractions,
+					isProductive,
+					0f,              // youtubeViews    — not trackable on-device
+					0f,              // youtubeLikes    — not trackable on-device
+					0f,              // youtubeComments — not trackable on-device
+					extraCol11to23,
+					catEntertainment,
+					catProductivity,
+					catSocial,
+					catUtilities
+			);
+			// ─────────────────────────────────────────────────────────
 
 		} catch (Exception e) {
 			Log.e(TAG, "aggregateUsageStats", e);
@@ -545,6 +615,47 @@ public class MainForegroundService extends Service {
 	}
 
 	// ===================== HELPERS =====================
+
+	/**
+	 * Maps a package name to one of the four model categories:
+	 * Entertainment, Social, Productivity, Utilities (default).
+	 */
+	private String getCategoryForPackage(String packageName) {
+		if (packageName == null) return "Utilities";
+		String pkg = packageName.toLowerCase(Locale.US);
+
+		// Entertainment
+		if (pkg.contains("youtube") || pkg.contains("netflix") ||
+				pkg.contains("spotify") || pkg.contains("tiktok") ||
+				pkg.contains("twitch")  || pkg.contains("disney") ||
+				pkg.contains("hulu")    || pkg.contains("prime")  ||
+				pkg.contains("game")    || pkg.contains("gaming")) {
+			return "Entertainment";
+		}
+
+		// Social
+		if (pkg.contains("instagram")  || pkg.contains("facebook") ||
+				pkg.contains("twitter")    || pkg.contains("snapchat") ||
+				pkg.contains("whatsapp")   || pkg.contains("telegram") ||
+				pkg.contains("tinder")     || pkg.contains("linkedin") ||
+				pkg.contains("reddit")     || pkg.contains("discord")  ||
+				pkg.contains("messenger")) {
+			return "Social";
+		}
+
+		// Productivity
+		if (pkg.contains("gmail")     || pkg.contains(".docs")    ||
+				pkg.contains(".sheets")  || pkg.contains(".slides")  ||
+				pkg.contains(".drive")   || pkg.contains("calendar") ||
+				pkg.contains("office")   || pkg.contains("outlook")  ||
+				pkg.contains("notion")   || pkg.contains("slack")    ||
+				pkg.contains("teams")    || pkg.contains("zoom")     ||
+				pkg.contains("classroom")|| pkg.contains("evernote")) {
+			return "Productivity";
+		}
+
+		return "Utilities";
+	}
 
 	private void throttleBatterySync() {
 		if (System.currentTimeMillis() - lastBatterySync > 10 * 60 * 1000) {
@@ -700,5 +811,174 @@ public class MainForegroundService extends Service {
 		IntentFilter remove = new IntentFilter(Intent.ACTION_PACKAGE_REMOVED);
 		remove.addDataScheme("package");
 		registerReceiver(appRemovedReceiver, remove);
+	}
+
+	// ===================== AI ANOMALY DETECTION =====================
+
+	/**
+	 * Checks whether today's collected usage data constitutes anomalous behaviour.
+	 *
+	 * Feature ORDER matches guardian_features.txt exactly (27 features):
+	 *  [0]  screen_time_min        [7–19] extra_col_11–23
+	 *  [1]  launches               [20]   DayOfWeek
+	 *  [2]  interactions           [21]   DayOfMonth
+	 *  [3]  is_productive          [22]   IsWeekend
+	 *  [4]  youtube_views          [23]   Cat_Entertainment
+	 *  [5]  youtube_likes          [24]   Cat_Productivity
+	 *  [6]  youtube_comments       [25]   Cat_Social
+	 *                              [26]   Cat_Utilities
+	 *
+	 * @param screenTimeMin    Total screen time in minutes
+	 * @param launches         Number of app launches
+	 * @param interactions     Number of user interactions
+	 * @param isProductive     1f if session was productive, 0f otherwise
+	 * @param youtubeViews     YouTube view count (0f if not applicable)
+	 * @param youtubeLikes     YouTube like count (0f if not applicable)
+	 * @param youtubeComments  YouTube comment count (0f if not applicable)
+	 * @param extraCol11to23   float[13] — raw values for extra_col_11 through extra_col_23
+	 * @param catEntertainment 1f if dominant category is Entertainment, else 0f
+	 * @param catProductivity  1f if dominant category is Productivity, else 0f
+	 * @param catSocial        1f if dominant category is Social, else 0f
+	 * @param catUtilities     1f if dominant category is Utilities, else 0f
+	 */
+	private void checkForAnomalousBehavior(
+			float   screenTimeMin,
+			float   launches,
+			float   interactions,
+			float   isProductive,
+			float   youtubeViews,
+			float   youtubeLikes,
+			float   youtubeComments,
+			float[] extraCol11to23,    // must be length 13
+			float   catEntertainment,
+			float   catProductivity,
+			float   catSocial,
+			float   catUtilities
+	) {
+		if (anomalyDetector == null) {
+			Log.e(TAG, "checkForAnomalousBehavior: anomalyDetector not initialised.");
+			return;
+		}
+		if (extraCol11to23 == null || extraCol11to23.length != 13) {
+			Log.e(TAG, "checkForAnomalousBehavior: extraCol11to23 must be float[13]. Aborting.");
+			return;
+		}
+
+		Calendar cal = Calendar.getInstance();
+		int dayOfWeek  = cal.get(Calendar.DAY_OF_WEEK) - 1; // 0=Monday … 6=Sunday
+		int dayOfMonth = cal.get(Calendar.DAY_OF_MONTH);    // 1–31
+		int isWeekend  = (dayOfWeek >= 5) ? 1 : 0;          // Sat=5, Sun=6
+
+		// ── Build the 27-element normalised feature vector ───────────
+		float[] features = new float[BehaviorAnomalyDetector.INPUT_DIM]; // 27
+
+		// [0] screen_time_min
+		features[0]  = BehaviorAnomalyDetector.normalize(screenTimeMin,
+						FeatureNormConstants.SCREEN_TIME_MIN_MIN,
+						FeatureNormConstants.SCREEN_TIME_MIN_MAX);
+
+		// [1] launches
+		features[1]  = BehaviorAnomalyDetector.normalize(launches,
+						FeatureNormConstants.LAUNCHES_MIN,
+						FeatureNormConstants.LAUNCHES_MAX);
+
+		// [2] interactions
+		features[2]  = BehaviorAnomalyDetector.normalize(interactions,
+						FeatureNormConstants.INTERACTIONS_MIN,
+						FeatureNormConstants.INTERACTIONS_MAX);
+
+		// [3] is_productive (already 0 or 1)
+		features[3]  = BehaviorAnomalyDetector.normalize(isProductive,
+						FeatureNormConstants.IS_PRODUCTIVE_MIN,
+						FeatureNormConstants.IS_PRODUCTIVE_MAX);
+
+		// [4] youtube_views
+		features[4]  = BehaviorAnomalyDetector.normalize(youtubeViews,
+						FeatureNormConstants.YOUTUBE_VIEWS_MIN,
+						FeatureNormConstants.YOUTUBE_VIEWS_MAX);
+
+		// [5] youtube_likes
+		features[5]  = BehaviorAnomalyDetector.normalize(youtubeLikes,
+						FeatureNormConstants.YOUTUBE_LIKES_MIN,
+						FeatureNormConstants.YOUTUBE_LIKES_MAX);
+
+		// [6] youtube_comments
+		features[6]  = BehaviorAnomalyDetector.normalize(youtubeComments,
+						FeatureNormConstants.YOUTUBE_COMMENTS_MIN,
+						FeatureNormConstants.YOUTUBE_COMMENTS_MAX);
+
+		// [7–19] extra_col_11 through extra_col_23
+		features[7]  = BehaviorAnomalyDetector.normalize(extraCol11to23[0],
+						FeatureNormConstants.EXTRA_COL_11_MIN, FeatureNormConstants.EXTRA_COL_11_MAX);
+		features[8]  = BehaviorAnomalyDetector.normalize(extraCol11to23[1],
+						FeatureNormConstants.EXTRA_COL_12_MIN, FeatureNormConstants.EXTRA_COL_12_MAX);
+		features[9]  = BehaviorAnomalyDetector.normalize(extraCol11to23[2],
+						FeatureNormConstants.EXTRA_COL_13_MIN, FeatureNormConstants.EXTRA_COL_13_MAX);
+		features[10] = BehaviorAnomalyDetector.normalize(extraCol11to23[3],
+						FeatureNormConstants.EXTRA_COL_14_MIN, FeatureNormConstants.EXTRA_COL_14_MAX);
+		features[11] = BehaviorAnomalyDetector.normalize(extraCol11to23[4],
+						FeatureNormConstants.EXTRA_COL_15_MIN, FeatureNormConstants.EXTRA_COL_15_MAX);
+		features[12] = BehaviorAnomalyDetector.normalize(extraCol11to23[5],
+						FeatureNormConstants.EXTRA_COL_16_MIN, FeatureNormConstants.EXTRA_COL_16_MAX);
+		features[13] = BehaviorAnomalyDetector.normalize(extraCol11to23[6],
+						FeatureNormConstants.EXTRA_COL_17_MIN, FeatureNormConstants.EXTRA_COL_17_MAX);
+		features[14] = BehaviorAnomalyDetector.normalize(extraCol11to23[7],
+						FeatureNormConstants.EXTRA_COL_18_MIN, FeatureNormConstants.EXTRA_COL_18_MAX);
+		features[15] = BehaviorAnomalyDetector.normalize(extraCol11to23[8],
+						FeatureNormConstants.EXTRA_COL_19_MIN, FeatureNormConstants.EXTRA_COL_19_MAX);
+		features[16] = BehaviorAnomalyDetector.normalize(extraCol11to23[9],
+						FeatureNormConstants.EXTRA_COL_20_MIN, FeatureNormConstants.EXTRA_COL_20_MAX);
+		features[17] = BehaviorAnomalyDetector.normalize(extraCol11to23[10],
+						FeatureNormConstants.EXTRA_COL_21_MIN, FeatureNormConstants.EXTRA_COL_21_MAX);
+		features[18] = BehaviorAnomalyDetector.normalize(extraCol11to23[11],
+						FeatureNormConstants.EXTRA_COL_22_MIN, FeatureNormConstants.EXTRA_COL_22_MAX);
+		features[19] = BehaviorAnomalyDetector.normalize(extraCol11to23[12],
+						FeatureNormConstants.EXTRA_COL_23_MIN, FeatureNormConstants.EXTRA_COL_23_MAX);
+
+		// [20] DayOfWeek
+		features[20] = BehaviorAnomalyDetector.normalize(dayOfWeek,
+						FeatureNormConstants.DAYOFWEEK_MIN,
+						FeatureNormConstants.DAYOFWEEK_MAX);
+
+		// [21] DayOfMonth
+		features[21] = BehaviorAnomalyDetector.normalize(dayOfMonth,
+						FeatureNormConstants.DAYOFMONTH_MIN,
+						FeatureNormConstants.DAYOFMONTH_MAX);
+
+		// [22] IsWeekend (already 0 or 1)
+		features[22] = isWeekend;
+
+		// [23–26] Category one-hots (already 0 or 1 — no normalisation needed)
+		features[23] = catEntertainment;
+		features[24] = catProductivity;
+		features[25] = catSocial;
+		features[26] = catUtilities;
+
+		// ── Run AI Inference ────────────────────────────────────────
+		float   score   = anomalyDetector.getAnomalyScore(features);
+		boolean anomaly = anomalyDetector.isAnomaly(features);
+
+		if (anomaly) {
+			Log.w(TAG, "🚨 ANOMALY DETECTED! Score: " + score);
+			logAlert("Unusual Behaviour Detected",
+					"AI flagged abnormal usage pattern. Score: " + String.format(Locale.US, "%.4f", score),
+					uid);
+		} else {
+			Log.d(TAG, "✅ Normal behaviour. Score: " + score);
+		}
+
+		// ── Write AI status to Firebase on every check (for parent UI) ──────
+		HashMap<String, Object> aiStatus = new HashMap<>();
+		aiStatus.put("score",       (double) score);
+		aiStatus.put("isAnomaly",   anomaly);
+		aiStatus.put("status",      anomaly ? "Anomalous" : "Normal");
+		aiStatus.put("lastChecked", System.currentTimeMillis());
+
+		databaseReference.child("childs").child(uid)
+				.child("aiStatus")
+				.setValue(aiStatus)
+				.addOnSuccessListener(v -> Log.d(TAG, "aiStatus updated in Firebase."))
+				.addOnFailureListener(e -> Log.e(TAG, "Failed to update aiStatus.", e));
+		// ────────────────────────────────────────────────────────────────────
 	}
 }

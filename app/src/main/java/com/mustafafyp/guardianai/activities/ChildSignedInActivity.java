@@ -1,6 +1,7 @@
 package com.mustafafyp.guardianai.activities;
 
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
@@ -19,6 +20,10 @@ import android.widget.ImageView;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 import com.mustafafyp.guardianai.R;
 import com.mustafafyp.guardianai.models.Child;
 import com.mustafafyp.guardianai.dialogfragments.InformationDialogFragment;
@@ -41,6 +46,8 @@ public class ChildSignedInActivity extends AppCompatActivity implements OnPermis
 	private ImageButton btnSettings;
 	private TextView txtTitle;
 	private androidx.appcompat.widget.Toolbar toolbar;
+	private ValueEventListener aiStatusListener;
+	private String childUidForAiDot;
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -83,6 +90,7 @@ public class ChildSignedInActivity extends AppCompatActivity implements OnPermis
 			setupRealtimeListeners(email);
 			displayRandomSafetyTip();
 			setupSOSButton(email);
+			setupAiStatusDot(email);
 		}
 	}
 
@@ -256,6 +264,46 @@ public class ChildSignedInActivity extends AppCompatActivity implements OnPermis
 			int randomIndex = new Random().nextInt(tips.length);
 			txtSafetyTip.setText(tips[randomIndex]);
 		}
+	}
+
+	// ── AI Status Dot ─────────────────────────────────────────────────────────
+
+	private void setupAiStatusDot(String email) {
+		View dot = findViewById(R.id.viewAiStatusDot);
+		if (dot == null) return;
+
+		// Lookup child UID by email, then listen to aiStatus
+		FirebaseDatabase.getInstance().getReference("users/childs")
+				.orderByChild("email").equalTo(email)
+				.addListenerForSingleValueEvent(new ValueEventListener() {
+					@Override
+					public void onDataChange(@NonNull DataSnapshot snapshot) {
+						if (!snapshot.exists()) return;
+						childUidForAiDot = snapshot.getChildren().iterator().next().getKey();
+						if (childUidForAiDot == null) return;
+
+						aiStatusListener = new ValueEventListener() {
+							@Override
+							public void onDataChange(@NonNull DataSnapshot s) {
+								Object rawAnomaly = s.child("isAnomaly").getValue();
+								boolean isAnomaly = Boolean.TRUE.equals(rawAnomaly);
+								runOnUiThread(() -> dot.setBackgroundTintList(
+										android.content.res.ColorStateList.valueOf(
+												isAnomaly
+														? Color.parseColor("#D32F2F")
+														: Color.parseColor("#43A047"))));
+							}
+							@Override
+							public void onCancelled(@NonNull DatabaseError e) {}
+						};
+
+						FirebaseDatabase.getInstance()
+								.getReference("users/childs/" + childUidForAiDot + "/aiStatus")
+								.addValueEventListener(aiStatusListener);
+					}
+					@Override
+					public void onCancelled(@NonNull DatabaseError e) {}
+				});
 	}
 	
 	private void startMainForegroundService(String email) {
